@@ -22,3 +22,4 @@ typedef struct{
     Player players[CANT_PLAYERS];            /* Información de los jugadores */
     bool gameOver;                      /* Indica si el juego ha terminado */
 } GameState;
+
