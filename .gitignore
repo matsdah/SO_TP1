@@ -1,0 +1,10 @@
+# Archivos objeto y ejecutables
+*.o
+master
+vista
+jugador
+
+# Archivos temporales o de prueba
+*.log
+*.out
+.DS_Store
