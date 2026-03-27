@@ -1,4 +1,5 @@
 int main(int argc, char const *argv[]){
+    
     unsigned int heigth;
     unsigned int width;
 

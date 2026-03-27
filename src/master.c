@@ -1,4 +1,26 @@
-int main(int argc, char const *argv[]){
+#include "../include/structures.h"
+#include "../include/paramsHandler.h"
+#include "../include/shmCommon.h"
+#include "../include/shmState.h"
+#include "../include/shmSync.h"
+
+
+int main(int argc, char const *argv[]){    
+
+    /* paramsHandler */
+    Parameters params = default_parameters();
+    if (!parse_parameters(argc, argv, &params)) {
+        return 1;
+    }
+
+    printf("width: " + params.width);
+    printf("height: " + params.height);
     
+    
+
+    /* shm */
+    GameState * gameState = createGameState(sizeof(GameState) + (sizeof(int)  *(params.height * params.width)));
+    semaphoresStatus * gameSync = createGameSync();
+
     return 0;
 }
