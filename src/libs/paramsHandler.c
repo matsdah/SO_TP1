@@ -3,37 +3,37 @@
 #include <string.h>
 #include "paramsHandler.h"
 #include "structures.h"
-/*
-Lista de params necesarios, el orden puede ser arbritrario.
 
-[-w width]: Ancho del tablero. Default y mínimo: 10
-[-h height]: Alto del tablero. Default y mínimo: 10
-[-d delay]: milisegundos que espera el máster cada vez que se imprime el estado. Default: 200
-[-t timeout]: Timeout en segundos para recibir solicitudes de movimientos válidos. Default: 10
-[-s seed]: Semilla utilizada para la generación del tablero. Default: time(NULL)
-[-v view]: Ruta del binario de la vista. Default: Sin vista.
--p player1 player2: Ruta/s de los binarios de los jugadores. Mínimo: 1, Máximo: 9.
-*/
 
 int handle_width(const char *value, void *context);
 int handle_height(const char *value, void *context);
+int handle_delay(const char *value, void *context);
+int handle_timeout(const char *value, void *context);
+int handle_seed(const char *value, void *context);
 int handle_view(const char *value, void *context);
+int handle_players(const char *value, void *context);
+static int is_flag(const char *arg);
 
 Parameter parameters[] = {
     {"-w", 1, handle_width,   "Set width  (example: -w 20)"},
-    {"-h", 1, handle_height,  "Set height (example: -h 10)"}
+    {"-h", 1, handle_height,  "Set height (example: -h 10)"},
+    {"-d", 1, handle_delay,  "Set delay (example: -d 100)"},
+    {"-t", 1, handle_timeout,  "Set timeout (example: -t 15)"},
+    {"-s", 1, handle_seed,  "Set seed (example: -s 67)"},
+    {"-v", 1, handle_view,  "Set view path (example: -v ./vista)"},
+    {"-p", 1, handle_players,  "Set players path (example: -p ./player ./bin/player2)"},
 };
 
-Parameters default_parameters(){
+Parameters default_parameters(void){
     Parameters p = {
-        10,            // width
-        10,            // height
-        200,           // delay
-        10,            // timeout
-        67,            // seed
-        "../vista.c",  // view
-        "../jugador.c",// player
-        2              // player count
+        .width = 10,
+        .height = 10,
+        .delay = 200,
+        .timeout = 10,
+        .seed = 67,
+        .view = "../vista",
+        .players = { "../jugador" },
+        .amount_players = 1
     };
     return p;
 }
@@ -64,6 +64,7 @@ const Parameter *find_parameter(const char *arg, const Parameter params[], int p
 
 int parse_parameters(int argc, char *argv[], Parameters *paramsConfig) {
     int param_count = sizeof(parameters) / sizeof(parameters[0]);
+    int players_flag_seen = 0;
     
     for (int i = 1; i < argc; i++) {
         const Parameter *param = find_parameter(argv[i], parameters, param_count);
@@ -71,6 +72,30 @@ int parse_parameters(int argc, char *argv[], Parameters *paramsConfig) {
         if (param == NULL) {
             fprintf(stderr, "Error: unknown parameter '%s'\n", argv[i]);
             return 0;
+        }
+
+        if (strcmp(param->flag, "-p") == 0) {
+            int consumed = 0;
+
+            if (!players_flag_seen) {
+                paramsConfig->amount_players = 0;
+                players_flag_seen = 1;
+            }
+
+            while (i + 1 < argc && !is_flag(argv[i + 1])) {
+                if (!param->handler(argv[i + 1], paramsConfig)) {
+                    return 0;
+                }
+                i++;
+                consumed++;
+            }
+
+            if (consumed == 0) {
+                fprintf(stderr, "Error: parameter '-p' expects at least one player path\n");
+                return 0;
+            }
+
+            continue;
         }
 
         if (param->expects_value) {
@@ -93,6 +118,11 @@ int parse_parameters(int argc, char *argv[], Parameters *paramsConfig) {
         }
     }
 
+    if (paramsConfig->amount_players < 1 || paramsConfig->amount_players > 8) {
+        fprintf(stderr, "Error: amount of players must be between 1 and 8\n");
+        return 0;
+    }
+
     return 1;
 }
 
@@ -110,6 +140,64 @@ int handle_height(const char *value, void *context) {
     Parameters *cfg = (Parameters *)context;
     cfg->height = atoi(value);
     return 1;
+}
+
+int handle_timeout(const char *value, void *context) {
+    Parameters *cfg = (Parameters *)context;
+    cfg->timeout = atoi(value);
+    return 1;
+}
+
+int handle_delay(const char *value, void *context) {
+    Parameters *cfg = (Parameters *)context;
+    cfg->delay = atoi(value);
+    return 1;
+}
+
+int handle_seed(const char *value, void *context) {
+    Parameters *cfg = (Parameters *)context;
+    cfg->seed = atoi(value);
+    return 1;
+}
+
+int handle_view(const char *value, void *context) {
+    Parameters *cfg = (Parameters *)context;
+    size_t len = strlen(value);
+    char *copy = malloc(len + 1);
+    if (copy == NULL) {
+        fprintf(stderr, "Error: not enough memory for view path\n");
+        return 0;
+    }
+
+    memcpy(copy, value, len + 1);
+    cfg->view = copy;
+    return 1;
+}
+
+int handle_players(const char *value, void *context) {
+    Parameters *cfg = (Parameters *)context;
+    size_t len = strlen(value);
+    char *copy;
+
+    if (cfg->amount_players >= 8) {
+        fprintf(stderr, "Error: maximum number of players is 8\n");
+        return 0;
+    }
+
+    copy = malloc(len + 1);
+    if (copy == NULL) {
+        fprintf(stderr, "Error: not enough memory for player path\n");
+        return 0;
+    }
+
+    memcpy(copy, value, len + 1);
+    cfg->players[cfg->amount_players] = copy;
+    cfg->amount_players++;
+    return 1;
+}
+
+static int is_flag(const char *arg) {
+    return arg != NULL && arg[0] == '-' && arg[1] != '\0';
 }
 
 

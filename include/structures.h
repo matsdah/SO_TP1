@@ -1,3 +1,6 @@
+#ifndef STRUCTURES_H
+#define STRUCTURES_H
+
 #include <sys/wait.h>
 #include <semaphore.h>
 #include <stdbool.h>
@@ -49,7 +52,7 @@ typedef struct{
     sem_t playersAllowedToMove [CANT_PLAYERS]; /* Le indica a cada jugador que puede enviar 1 movimiento */
 } semaphoresStatus;
 
-
+// Parameters values
 typedef struct{
     size_t width;       /* Ancho del tablero */
     size_t height;      /* Alto del tablero */
@@ -60,3 +63,16 @@ typedef struct{
     char * players[CANT_PLAYERS];   /* Rutas de los binarios de los jugadores */
     size_t amount_players;          /* Cantidad de jugadores */
 } Parameters;
+
+
+// To help parsing parameters and their functions
+typedef int (*ParamHandler)(const char *value, void *context);
+
+typedef struct {
+    const char *flag;
+    int expects_value;
+    ParamHandler handler;
+    const char *help;
+} Parameter;
+
+#endif

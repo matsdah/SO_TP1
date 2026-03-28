@@ -1,3 +1,3 @@
 #include "structures.h"
 
-semaphoresStatus * createGameSync();
+semaphoresStatus * createGameSync(void);
