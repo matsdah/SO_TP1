@@ -60,7 +60,26 @@ void * createAndMap(const char * name, size_t size, mode_t mode, int * fdOut, in
 	return addr;
 }
 
-void * openAndMap(const char * name, size_t size, int oFlag, int * fdOut, int prot);
+void * openAndMap(const char * name, size_t size, int oFlag, int * fdOut, int prot){
+	int fd = openFd(name, oFlag);
+	if(fd == -1){
+		return MAP_FAILED;
+	}
+
+	void * addr = mapFd(fd, size, prot);
+	if(addr == MAP_FAILED){
+		close(fd);
+		return MAP_FAILED;
+	}
+
+	if(fdOut){
+		*fdOut = fd;
+	} else{
+		close(fd);
+	}
+
+	return addr;
+}
 
 
 

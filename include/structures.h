@@ -14,6 +14,12 @@
 /* Macro para calcular el tamaño del estado del juego */
 #define GAME_STATUS_SIZE(GameState, width, height) (sizeof(GameState) + (sizeof(int) * (width * height)))
 
+/* Macro para verificar si una posición es la cabeza de un jugador */
+#define IS_HEAD(x, y, j, i) ((x) == (j) && (y) == (i))
+
+/* Macro para acceder a una posición del tablero */
+#define BOARD_AT(board, w, i, j) ((board)[((i) * (w)) + (j)])
+
 
 /* Estructura para representar el estado del juego */
 typedef struct{
@@ -41,9 +47,9 @@ typedef struct{
 
 /* Estructura para representar el estado de los semáforos */
 typedef struct{ 
-    sem_t showNeeded;       /* Indicarle a la vista que hay cambios por imprimir */
-    sem_t showDone;         /* Indicarle al master que la vista terminó de imprimir */
-    sem_t masterMutex;      /* Mutex para evitar inanición del master al acceder al estado */
+    sem_t showNeeded;           /* Indicarle a la vista que hay cambios por imprimir */
+    sem_t showDone;             /* Indicarle al master que la vista terminó de imprimir */
+    sem_t masterMutex;          /* Mutex para evitar inanición del master al acceder al estado */
     sem_t gameStateMutex;       /* Mutex para evitar condiciones de carrera. */
     sem_t nextVariableMutex;    /* Mutex para la siguiente variable */
 
@@ -52,7 +58,8 @@ typedef struct{
     sem_t playersAllowedToMove [CANT_PLAYERS]; /* Le indica a cada jugador que puede enviar 1 movimiento */
 } semaphoresStatus;
 
-// Parameters values
+
+/* Parameters values. */ 
 typedef struct{
     size_t width;       /* Ancho del tablero */
     size_t height;      /* Alto del tablero */
@@ -68,7 +75,7 @@ typedef struct{
 // To help parsing parameters and their functions
 typedef int (*ParamHandler)(const char *value, void *context);
 
-typedef struct {
+typedef struct{
     const char *flag;
     int expects_value;
     ParamHandler handler;
