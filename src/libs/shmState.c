@@ -1,5 +1,5 @@
-#include "shmCommon.h"
-#include "shmState.h"
+#include "../../include/shmState.h"
+#include "../../include/shmSync.h"
 #include "structures.h"
 
 size_t gameStateSize(size_t width, size_t height){

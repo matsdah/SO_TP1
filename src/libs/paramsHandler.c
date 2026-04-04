@@ -31,8 +31,8 @@ Parameters default_parameters(void){
         .delay = 200,
         .timeout = 10,
         .seed = 67,
-        .view = "../vista",
-        .players = { "../jugador" },
+        .view = "../vista",             //PARA TESTEO LO DEJAMOS PERO TIENE QUE IR VACIO POR DEFAULT
+        .players = { "../jugador" },    //PARA TESTEO LO DEJAMOS PERO TIENE QUE IR VACIO POR DEFAULT
         .amount_players = 1
     };
     return p;
@@ -118,8 +118,8 @@ int parse_parameters(int argc, char *argv[], Parameters *paramsConfig) {
         }
     }
 
-    if (paramsConfig->amount_players < 1 || paramsConfig->amount_players > 8) {
-        fprintf(stderr, "Error: amount of players must be between 1 and 8\n");
+    if (paramsConfig->amount_players < 1 || paramsConfig->amount_players > 9) {
+        fprintf(stderr, "Error: amount of players must be between 1 and 9\n");
         return 0;
     }
 
@@ -179,8 +179,8 @@ int handle_players(const char *value, void *context) {
     size_t len = strlen(value);
     char *copy;
 
-    if (cfg->amount_players >= 8) {
-        fprintf(stderr, "Error: maximum number of players is 8\n");
+    if (cfg->amount_players >= 9) {
+        fprintf(stderr, "Error: maximum number of players is 9\n");
         return 0;
     }
 
