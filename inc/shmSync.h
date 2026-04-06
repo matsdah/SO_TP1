@@ -1,7 +1,7 @@
 #ifndef SHM_SYNC_H
 #define SHM_SYNC_H
 
-#include "structures.h"
+#include <structures.h>
 
 #define GAME_SYNC_SHM_NAME "/game_sync"
 

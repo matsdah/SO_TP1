@@ -1,4 +1,4 @@
-#include "structures.h"
+#include <structures.h>
 
 void setInitialGameState(GameState * gameState, Parameters params);
 

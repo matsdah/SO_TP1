@@ -1,0 +1,6 @@
+-xc
+-std=gnu99
+-Wall
+-Wextra
+-g
+-I./inc

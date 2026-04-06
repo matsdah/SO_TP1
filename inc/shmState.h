@@ -2,7 +2,7 @@
 #define SHMSTATE_H
 
 #include <stddef.h>
-#include "structures.h"
+#include <structures.h>
 
 #define GAME_STATE_SHM_NAME "/game_state"
 
