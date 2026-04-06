@@ -1,6 +1,10 @@
-#include "shmCommon.h"
-#include "shmSync.h"
-#include "structures.h"
+#include "../../include/shmSync.h"
+
+#include "../../include/shmCommon.h"
+
+#include <fcntl.h>
+#include <string.h>
+#include <sys/mman.h>
 
 int syncCreate(int * shmFd, semaphoresStatus ** gameSync){
     if(!gameSync || !shmFd){
@@ -46,6 +50,8 @@ int syncInit(semaphoresStatus * gameSync, unsigned int playersCount){
             return -1;
         }
     }
+
+    return 0;
 }
 
 int syncDestroy(semaphoresStatus * gameSync, unsigned int playersCount){
@@ -89,7 +95,7 @@ int syncOpen(int * shmFd, semaphoresStatus ** gameSync){
         return -1;
     }
 
-    void * addr = openAndMap(GAME_SYNC_SHM_NAME, sizeof(semaphoresStatus), shmFd, PROT_READ | PROT_WRITE);
+    void * addr = openAndMap(GAME_SYNC_SHM_NAME, sizeof(semaphoresStatus), O_RDWR, shmFd, PROT_READ | PROT_WRITE);
     if(addr == MAP_FAILED){
         return -1;
     }
@@ -105,4 +111,3 @@ int syncClose(int shmFd, semaphoresStatus * gameSync){
 
     return unmapFd(gameSync, sizeof(semaphoresStatus)) == -1 || closeFd(shmFd) == -1 ? -1 : 0;
 }
-

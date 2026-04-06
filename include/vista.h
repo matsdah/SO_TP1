@@ -1,3 +1,7 @@
+#ifndef VISTA_H
+#define VISTA_H
+
+#include <stddef.h>
 #include <unistd.h>
 #include <string.h>
 #include "structures.h"
@@ -13,3 +17,5 @@ void printStats(GameState * gameState);
 
 /* Función para imprimir las estadísticas de un jugador. */
 void printPlayerStats(Player* player_state);
+
+#endif

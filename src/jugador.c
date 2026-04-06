@@ -1,16 +1,37 @@
-#include "../include/structures.h"
+#include "../include/shmState.h"
+#include "../include/shmSync.h"
 
-int main(int argc, char const *argv[]){
-    
-    size_t heigth;
-    size_t width;
+#include <stdio.h>
+#include <stdlib.h>
 
-    heigth = atoi(argv[1]);
-    width = atoi(argv[2]);
+int main(int argc, char *argv[]){
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <height> <width>\n", argv[0]);
+        return 1;
+    }
 
-    semaphoresStatus * gameSync = get_game_sync();
-    //chequear el size
-    GameState * gameState = get_game_state(GAME_STATUS_SIZE(game_state, width, height));
-    
+    size_t height = (size_t)atoi(argv[1]);
+    size_t width = (size_t)atoi(argv[2]);
+
+    int syncFd = -1;
+    int stateFd = -1;
+    semaphoresStatus *sync = NULL;
+    GameState *state = NULL;
+
+    if (syncOpen(&syncFd, &sync) == -1) {
+        perror("syncOpen");
+        return 1;
+    }
+    if (stateOpen(&stateFd, &state, width, height) == -1) {
+        perror("stateOpen");
+        return 1;
+    }
+
+    /* Lógica del jugador pendiente; por ahora solo valida IPC y termina. */
+    (void)sync;
+    (void)state;
+
+    (void)syncClose(syncFd, sync);
+    (void)stateClose(stateFd, state, width, height);
     return 0;
 }

@@ -12,4 +12,4 @@ void fillBoard(int width, int height, int * board);
 void setInitialTimeouts(int timeoutValue);
 
 
-void setInicialPlayersPosition(GameState * gameState);
+void setInitialPlayersPosition(GameState * gameState);

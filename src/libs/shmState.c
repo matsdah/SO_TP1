@@ -1,22 +1,30 @@
 #include "../../include/shmState.h"
-#include "../../include/shmSync.h"
-#include "structures.h"
+
+#include "../../include/shmCommon.h"
+
+#include <fcntl.h>
+#include <sys/mman.h>
 
 size_t gameStateSize(size_t width, size_t height){
     return sizeof(GameState) + (sizeof(int) * (width * height));
 }
 
 int stateCreate(int * shmFd, GameState ** gameState, size_t width, size_t height){
-    if(!gameState){
+    if(!gameState || !shmFd){
         return -1;
     }
     
     void * addr = createAndMap(GAME_STATE_SHM_NAME, gameStateSize(width, height), 0600, shmFd, PROT_READ | PROT_WRITE);
-    return (addr == MAP_FAILED) ? -1 : 0;
+    if(addr == MAP_FAILED){
+        return -1;
+    }
+
+    *gameState = (GameState *)addr;
+    return 0;
 }
 
 int stateOpen(int * shmFd, GameState ** gameState, size_t width, size_t height){
-    if(!gameState){
+    if(!gameState || !shmFd){
         return -1;
     }
     
@@ -31,14 +39,13 @@ int stateOpen(int * shmFd, GameState ** gameState, size_t width, size_t height){
 }
 
 int stateClose(int shmFd, GameState * gameState, size_t width, size_t height){
-    return (!gameState && (unmapFd(gameState, gameStateSize(width, height)) == -1|| closeFd(shmFd) == -1)) ? -1 : 0;
+    if(!gameState){
+        return -1;
+    }
+
+    return (unmapFd(gameState, gameStateSize(width, height)) == -1 || closeFd(shmFd) == -1) ? -1 : 0;
 }
 
 int stateUnlink(){
     return removeFd(GAME_STATE_SHM_NAME);
 }
-
-// sixseven 67 67 67 67 67 67 six seve
-// aguante la academia, rojo puto
-// vamo acade 
-// 

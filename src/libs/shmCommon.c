@@ -5,7 +5,7 @@
 
 int createFd(const char * name, size_t size, mode_t mode){
 	int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, mode);
-	int (fd == -1){
+	if(fd == -1){
 		return -1;
 	}
 

@@ -1,9 +1,9 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
-#include <sys/wait.h>
 #include <semaphore.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 /* Dimensión máxima del nombre de un jugador */
 #define NAME_DIM 16
