@@ -1,6 +1,5 @@
 CC = gcc
-INCLUDES = -I ./inc
-CFLAGS = -Wall -Wextra -std=gnu99 -g $(INCLUDES)
+CFLAGS = -Wall -Wextra -std=gnu99 -g -Iinc
 LDFLAGS = -lm -pthread
 
 SRCDIR = src

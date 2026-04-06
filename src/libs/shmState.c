@@ -1,7 +1,5 @@
 #include <shmState.h>
-
 #include <shmCommon.h>
-
 #include <fcntl.h>
 #include <sys/mman.h>
 
@@ -14,7 +12,7 @@ int stateCreate(int * shmFd, GameState ** gameState, size_t width, size_t height
         return -1;
     }
     
-    void * addr = createAndMap(GAME_STATE_SHM_NAME, gameStateSize(width, height), 0600, shmFd, PROT_READ | PROT_WRITE);
+    void * addr = createAndMap(GAME_STATE_SHM_NAME, gameStateSize(width, height), 0644, shmFd, PROT_READ | PROT_WRITE);
     if(addr == MAP_FAILED){
         return -1;
     }
@@ -28,8 +26,8 @@ int stateOpen(int * shmFd, GameState ** gameState, size_t width, size_t height){
         return -1;
     }
     
-    void * addr = openAndMap(GAME_STATE_SHM_NAME, gameStateSize(width, height), O_RDWR, shmFd, PROT_READ | PROT_WRITE);
-    
+    void * addr = openAndMap(GAME_STATE_SHM_NAME, gameStateSize(width, height), O_RDONLY, shmFd, PROT_READ);   
+     
     if(addr == MAP_FAILED){
         return -1;
     } else {

@@ -1,7 +1,5 @@
 #include <shmSync.h>
-
 #include <shmCommon.h>
-
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -26,10 +24,10 @@ int syncInit(semaphoresStatus * gameSync, unsigned int playersCount){
     }
     memset(gameSync, 0, sizeof(semaphoresStatus));
 
-    if(sem_init(&gameSync->showNeeded, 1, 0) == -1){
+    if(sem_init(&gameSync->printNeeded, 1, 0) == -1){
         return -1;
     }
-    if(sem_init(&gameSync->showDone, 1, 0) == -1){
+    if(sem_init(&gameSync->renderDone, 1, 0) == -1){
         return -1;
     }
 
@@ -39,13 +37,13 @@ int syncInit(semaphoresStatus * gameSync, unsigned int playersCount){
     if(sem_init(&gameSync->gameStateMutex, 1, 1) == -1){
         return -1;
     }
-    if(sem_init(&gameSync-> nextVariableMutex, 1, 1) == -1){
+    if(sem_init(&gameSync->readCountMutex, 1, 1) == -1){
         return -1;
     }
 
     gameSync ->playersReadingStatus = 0;
 
-    for(int i = 0; i < playersCount; i++){
+    for(unsigned int i = 0; i < playersCount; i++){
         if(sem_init(&gameSync->playersAllowedToMove[i], 1, 0) == -1){
             return -1;
         }
@@ -61,10 +59,10 @@ int syncDestroy(semaphoresStatus * gameSync, unsigned int playersCount){
         return -1;
     }
 
-    if(sem_destroy(&gameSync->showNeeded) == -1){
+    if(sem_destroy(&gameSync->printNeeded) == -1){
         toReturn = -1;
     }
-    if(sem_destroy(&gameSync->showDone) == -1){
+    if(sem_destroy(&gameSync->renderDone) == -1){
         toReturn = -1;
     }
     if(sem_destroy(&gameSync->masterMutex) == -1){
@@ -73,11 +71,11 @@ int syncDestroy(semaphoresStatus * gameSync, unsigned int playersCount){
     if(sem_destroy(&gameSync->gameStateMutex) == -1){
         toReturn = -1;
     }
-    if(sem_destroy(&gameSync->nextVariableMutex) == -1){
+    if(sem_destroy(&gameSync->readCountMutex) == -1){
         toReturn = -1;
     }
 
-    for(int i = 0; i < playersCount; i++){
+    for(unsigned int i = 0; i < playersCount; i++){
         if(sem_destroy(&gameSync->playersAllowedToMove[i]) == -1){
             toReturn = -1;
         }

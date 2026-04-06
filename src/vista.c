@@ -1,8 +1,6 @@
 #include <vista.h>
-
 #include <shmState.h>
 #include <shmSync.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,16 +48,25 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-    while (!state->gameOver) {
-        /* Si el master inicializa semáforos, esta espera sincroniza el render. */
-        (void)sync; /* evita warning si todavía no se usan semáforos */
+    while (1) {
+        /* Esperar a que el master indique que hay cambios */
+        sem_wait(&sync->printNeeded);
+        
+        /* Verificar si el juego terminó */
+        if (state->gameOver) {
+            clearScreen();
+            printView(state->board, height, width);
+            printStats(state);
+            sem_post(&sync->renderDone);
+            break;
+        }
 
         clearScreen();
         printView(state->board, height, width);
         printStats(state);
 
-        /* En una implementación completa: sem_post(&sync->showDone); */
-        usleep(50 * 1000);
+        /* Notificar al master que terminamos de imprimir */
+        sem_post(&sync->renderDone);
     }
 
     (void)syncClose(syncFd, sync);

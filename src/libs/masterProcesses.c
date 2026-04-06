@@ -1,13 +1,12 @@
-/* Aca van todos las implementaciones de las funciones del master.c. */
-
 #include <time.h>
 #include <math.h>
 #include <masterProcesses.h>
 #include <structures.h>
 
+static const double PI = 3.14159265358979323846;
 static int timeout = 0;
-
 static int timeouts[CANT_PLAYERS] = {0};
+
 
 void setInitialGameState(GameState * gameState, Parameters params){
 
@@ -30,7 +29,7 @@ void setInitialPlayersState(GameState * gameState, char * players[]){
         char name[150];
         strcpy(name, players[i]);
         strcpy(gameState->players[i].playerName, basename(name));
-        gameState->players[i].points = 0;
+        gameState->players[i].playerScore = 0;
         gameState->players[i].invalidMovements = 0;
         gameState->players[i].validMovements = 0;
         gameState->players[i].playerPID = 0;
@@ -58,7 +57,7 @@ void setInitialTimeouts(int timeoutValue){
     time_t currentTime = time(NULL);
 
     for(int i = 0; i < CANT_PLAYERS; i++){
-        timeouts[i] = current_time;
+        timeouts[i] = currentTime;
     }
 }
 
@@ -73,7 +72,7 @@ void setInicialPlayersPosition(GameState * gameState){
 
     for(int i = 0; i < gameState->playersCount; i++){
 
-        double theta = 2.0 * M_PI * i / gameState->playersCount;
+        double theta = 2.0 * PI * i / gameState->playersCount;
 
         double xf = k + b * sin(theta);
         double yf = h + a * cos(theta);

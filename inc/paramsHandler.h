@@ -4,6 +4,8 @@
 #include <structures.h>
 
 Parameters default_parameters(void);
+
+
 int parse_parameters(int argc, char *argv[], Parameters *paramsConfig);
 
 #endif

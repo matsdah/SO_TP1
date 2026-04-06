@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+
 int createFd(const char * name, size_t size, mode_t mode){
 	int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, mode);
 	if(fd == -1){

@@ -47,11 +47,11 @@ typedef struct{
 
 /* Estructura para representar el estado de los semáforos */
 typedef struct{ 
-    sem_t showNeeded;           /* Indicarle a la vista que hay cambios por imprimir */
-    sem_t showDone;             /* Indicarle al master que la vista terminó de imprimir */
+    sem_t printNeeded;           /* Indicarle a la vista que hay cambios por imprimir */
+    sem_t renderDone;             /* Indicarle al master que la vista terminó de imprimir */
     sem_t masterMutex;          /* Mutex para evitar inanición del master al acceder al estado */
     sem_t gameStateMutex;       /* Mutex para evitar condiciones de carrera. */
-    sem_t nextVariableMutex;    /* Mutex para la siguiente variable */
+    sem_t readCountMutex;    /* Mutex para la siguiente variable */
 
     /* Cantidad de jugadores leyendo el estado */
     unsigned int playersReadingStatus;
