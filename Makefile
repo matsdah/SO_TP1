@@ -1,6 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=gnu99 -g -Iinclude
-LDFLAGS = -lm -pthread -lrt
+INCLUDES = -I ./inc
+CFLAGS = -Wall -Wextra -std=gnu99 -g $(INCLUDES)
+LDFLAGS = -lm -pthread
 
 SRCDIR = src
 OBJDIR = obj

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "structures.h"
+#include <structures.h>
 
 
 int handle_width(const char *value, void *context);

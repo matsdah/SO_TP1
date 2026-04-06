@@ -1,6 +1,6 @@
-#include "../../include/shmSync.h"
+#include <shmSync.h>
 
-#include "../../include/shmCommon.h"
+#include <shmCommon.h>
 
 #include <fcntl.h>
 #include <string.h>

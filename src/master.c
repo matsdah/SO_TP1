@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include "../include/structures.h"
-#include "../include/paramsHandler.h"
-#include "../include/shmState.h"
-#include "../include/shmSync.h"
+#include <structures.h>
+#include <paramsHandler.h>
+#include <shmState.h>
+#include <shmSync.h>
 
 
 int main(int argc, char *argv[]){

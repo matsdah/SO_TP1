@@ -1,7 +1,7 @@
-#include "../include/vista.h"
+#include <vista.h>
 
-#include "../include/shmState.h"
-#include "../include/shmSync.h"
+#include <shmState.h>
+#include <shmSync.h>
 
 #include <stdio.h>
 #include <stdlib.h>

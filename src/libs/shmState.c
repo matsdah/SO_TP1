@@ -1,6 +1,6 @@
-#include "../../include/shmState.h"
+#include <shmState.h>
 
-#include "../../include/shmCommon.h"
+#include <shmCommon.h>
 
 #include <fcntl.h>
 #include <sys/mman.h>

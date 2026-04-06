@@ -2,9 +2,8 @@
 
 #include <time.h>
 #include <math.h>
-#include "../include/masterProcesses.h"
-#include "../include/structures.h"'
-#include "../include/structures.h"
+#include <masterProcesses.h>
+#include <structures.h>
 
 static int timeout = 0;
 
