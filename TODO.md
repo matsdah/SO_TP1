@@ -5,15 +5,15 @@
 - [x] Definir estructura `GameState` para el tablero y estado global.
 - [x] Definir estructura `semaphoresStatus` con todos los semáforos anónimos requeridos.
 - [x] Implementar sistema de parseo de parámetros para el Master (`-w`, `-h`, `-d`, `-t`, `-s`, `-v`, `-p`).
-- [ ] Corregir e implementar completamente la biblioteca de memoria compartida (`shmCommon.c`).
-    - [ ] Implementar `openAndMap`.
-    - [ ] Unificar nombres de funciones (actualmente `shmState.c` busca `createSHM` pero existe `createAndMap`).
+- [x] Corregir e implementar completamente la biblioteca de memoria compartida (`shmCommon.c`).
+    - [x] Implementar `openAndMap`.
+    - [x] Unificar nombres de funciones (actualmente `shmState.c` busca `createSHM` pero existe `createAndMap`).
 
 ## 2. Proceso Master (Servidor)
-- [ ] Crear e inicializar memoria compartida `/game_state`.
-- [ ] Crear e inicializar memoria compartida `/game_sync` (semáforos anónimos).
-- [ ] Crear canales de comunicación (Pipes anónimos) para recibir movimientos.
-- [ ] Implementar el "spawning" de procesos (Vista y Jugadores) usando `fork` y `exec`.
+- [x] Crear e inicializar memoria compartida `/game_state`.
+- [x] Crear e inicializar memoria compartida `/game_sync` (semáforos anónimos).
+- [x] Crear canales de comunicación (Pipes anónimos) para recibir movimientos.
+- [x] Implementar el "spawning" de procesos (Vista y Jugadores) usando `fork` y `exec`.
 - [ ] Implementar distribución inicial determinística de jugadores en el tablero.
 - [ ] Implementar el bucle principal de juego:
     - [ ] Recibir movimientos mediante `select` sobre los pipes de los jugadores.
