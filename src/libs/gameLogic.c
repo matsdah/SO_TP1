@@ -210,17 +210,39 @@ void printResults(GameState *state){
     }
 }
 
-void cleanup(PlayerProcess *processes, int count, GameState *state, semaphoresStatus *sync, int stateFd, int syncFd, size_t width, size_t height){
+void cleanup(PlayerProcess *processes, int count, GameState *state, semaphoresStatus *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid){
     /* Setea el flag de gameover. */
     state->gameOver = true;
 
+    /* Desbloquea a todos los jugadores para que puedan ver el flag gameOver y terminar */
     for(int i = 0; i < count; i++){
+        sem_post(&sync->playersAllowedToMove[i]);
+    }
+
+    /* Notifica a la vista para que vea el flag de gameOver y termine. */
+    if (viewPid > 0) {
+        notifyView(sync);
+    }
+
+    printf("\n=== Child Process Exit Status ===\n");
+    
+    for(int i = 0; i < count; i++){
+        int status;
 
         /* Cierra pipes. */
         close(processes[i].pipeFd);
 
         /* Espera a los procesos de los jugadores. */
-        waitpid(processes[i].pid, NULL, 0);
+        waitpid(processes[i].pid, &status, 0);
+        
+        /* Imprime el exit status */
+        if (WIFEXITED(status)) {
+            printf("Player %d (PID %d): exited with status %d\n", 
+                   i + 1, processes[i].pid, WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            printf("Player %d (PID %d): killed by signal %d\n", 
+                   i + 1, processes[i].pid, WTERMSIG(status));
+        }
     }
 
     /* Cierra la memoria compartida. */

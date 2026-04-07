@@ -5,16 +5,51 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <structures.h>
 #include <paramsHandler.h>
 #include <shmState.h>
 #include <shmSync.h>
 #include <gameLogic.h>
 
+/* Variables globales para el signal handler */
+static volatile sig_atomic_t interrupted = 0;
+static PlayerProcess *g_playerProcesses = NULL;
+static int g_playerCount = 0;
+static GameState *g_gameState = NULL;
+static semaphoresStatus *g_gameSync = NULL;
+static int g_stateFd = -1;
+static int g_syncFd = -1;
+static size_t g_width = 0;
+static size_t g_height = 0;
+static pid_t g_viewPid = -1;
+
+void signal_handler(int signum) {
+    (void)signum;
+    /* Solo setear flags en el signal handler (async-signal-safe) */
+    interrupted = 1;
+    
+    /* Marcar game over para que los procesos sepan que deben terminar */
+    if (g_gameState != NULL) {
+        g_gameState->gameOver = 1;
+    }
+}
+
 int main(int argc, char *argv[]){
     Parameters params = default_parameters();
 
     if(!parse_parameters(argc, argv, &params)){
+        return 1;
+    }
+
+    /* Configurar el manejador de señales */
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("sigaction");
         return 1;
     }
 
@@ -66,7 +101,7 @@ int main(int argc, char *argv[]){
 
     if(spawnPlayers(&params, playerProcesses, gameState) == -1){
 
-        cleanup(playerProcesses, params.amount_players, gameState, gameSync, stateFd, syncFd, params.width, params.height);
+        cleanup(playerProcesses, params.amount_players, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1);
 
         return 1;
     }
@@ -96,6 +131,17 @@ int main(int argc, char *argv[]){
         }
     }
 
+    /* Configurar variables globales para el signal handler */
+    g_playerProcesses = playerProcesses;
+    g_playerCount = params.amount_players;
+    g_gameState = gameState;
+    g_gameSync = gameSync;
+    g_stateFd = stateFd;
+    g_syncFd = syncFd;
+    g_width = params.width;
+    g_height = params.height;
+    g_viewPid = viewPid;
+
     /* Notifica el estado inicial a la vista. */
     if(viewPid > 0){
         notifyView(gameSync);
@@ -107,7 +153,7 @@ int main(int argc, char *argv[]){
     fd_set readFds;
     struct timeval tv;
 
-    while(!gameState->gameOver){
+    while(!gameState->gameOver && !interrupted){
         /* Check timeout y condiciones de gameover. */
         checkGameOver(gameState, startTime, params.timeout);
 
@@ -166,15 +212,29 @@ int main(int argc, char *argv[]){
         usleep(params.delay * 1000);
     }
 
-    /* Print final results */
-    printResults(gameState);
+    /* Si fue interrumpido, informar */
+    if (interrupted) {
+        fprintf(stderr, "\n\nInterrupted by signal, cleaning up...\n");
+    } else {
+        /* Print final results solo si terminó normalmente */
+        printResults(gameState);
+    }
 
     /* Cleanup */
-    cleanup(playerProcesses, (int)params.amount_players, gameState, gameSync, stateFd, syncFd, params.width, params.height);
+    cleanup(playerProcesses, (int)params.amount_players, gameState, gameSync, stateFd, syncFd, params.width, params.height, viewPid);
 
     /* Wait for view to finish */
     if (viewPid > 0) {
-        waitpid(viewPid, NULL, 0);
+        int viewStatus;
+        waitpid(viewPid, &viewStatus, 0);
+        
+        if (WIFEXITED(viewStatus)) {
+            printf("View (PID %d): exited with status %d\n", 
+                   viewPid, WEXITSTATUS(viewStatus));
+        } else if (WIFSIGNALED(viewStatus)) {
+            printf("View (PID %d): killed by signal %d\n", 
+                   viewPid, WTERMSIG(viewStatus));
+        }
     }
 
     return 0;

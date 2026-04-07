@@ -31,9 +31,9 @@ Parameters default_parameters(void){
         .delay = 200,
         .timeout = 10,
         .seed = 67,
-        .view = "../vista",             //PARA TESTEO LO DEJAMOS PERO TIENE QUE IR VACIO POR DEFAULT
-        .players = { "../jugador" },    //PARA TESTEO LO DEJAMOS PERO TIENE QUE IR VACIO POR DEFAULT
-        .amount_players = 1
+        .view = NULL,
+        .players = { NULL },
+        .amount_players = 0
     };
     return p;
 }

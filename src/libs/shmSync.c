@@ -109,3 +109,23 @@ int syncClose(int shmFd, semaphoresStatus * gameSync){
 
     return unmapFd(gameSync, sizeof(semaphoresStatus)) == -1 || closeFd(shmFd) == -1 ? -1 : 0;
 }
+
+void acquireReadLock(semaphoresStatus *sync){
+    sem_wait(&sync->masterMutex);       /* Respetar prioridad del escritor */
+    sem_wait(&sync->readCountMutex);
+    sync->playersReadingStatus++;
+    if (sync->playersReadingStatus == 1) {
+        sem_wait(&sync->gameStateMutex);  /* Primer lector bloquea */
+    }
+    sem_post(&sync->readCountMutex);
+    sem_post(&sync->masterMutex);
+}
+
+void releaseReadLock(semaphoresStatus *sync){
+    sem_wait(&sync->readCountMutex);
+    sync->playersReadingStatus--;
+    if (sync->playersReadingStatus == 0) {
+        sem_post(&sync->gameStateMutex);  /* Último lector desbloquea */
+    }
+    sem_post(&sync->readCountMutex);
+}

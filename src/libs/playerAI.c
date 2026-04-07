@@ -1,4 +1,5 @@
 #include <playerAI.h>
+#include <shmSync.h>
 #include <unistd.h>
 #include <semaphore.h>
 
@@ -14,30 +15,6 @@ int find_my_index(GameState *state){
         }
     }
     return -1;
-}
-
-void acquire_read_lock(semaphoresStatus *sync) {
-    sem_wait(&sync->masterMutex);
-    sem_wait(&sync->readCountMutex);
-    
-    sync->playersReadingStatus++;
-    if (sync->playersReadingStatus == 1) {
-        sem_wait(&sync->gameStateMutex);
-    }
-    
-    sem_post(&sync->readCountMutex);
-    sem_post(&sync->masterMutex);
-}
-
-void release_read_lock(semaphoresStatus *sync) {
-    sem_wait(&sync->readCountMutex);
-    
-    sync->playersReadingStatus--;
-    if (sync->playersReadingStatus == 0) {
-        sem_post(&sync->gameStateMutex);
-    }
-    
-    sem_post(&sync->readCountMutex);
 }
 
 unsigned char find_best_move(GameState *state, int my_index) {

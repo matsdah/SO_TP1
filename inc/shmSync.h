@@ -23,4 +23,10 @@ int syncOpen(int * shmFd, semaphoresStatus ** gameSync);
 /* Cierra mapping + fd */
 int syncClose(int shmFd, semaphoresStatus * gameSync);
 
+/* Readers-Writers: Acquire read lock (for vista/jugador) */
+void acquireReadLock(semaphoresStatus *sync);
+
+/* Readers-Writers: Release read lock (for vista/jugador) */
+void releaseReadLock(semaphoresStatus *sync);
+
 #endif

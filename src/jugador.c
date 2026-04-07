@@ -42,11 +42,11 @@ int main(int argc, char *argv[]){
     /* Bucle principal del jugador */
     while (1) {
         /* Adquirir lock de lectura */
-        acquire_read_lock(sync);
+        acquireReadLock(sync);
         
         /* Verificar si el juego terminó */
         if (state->gameOver) {
-            release_read_lock(sync);
+            releaseReadLock(sync);
             break;
         }
         
@@ -54,16 +54,21 @@ int main(int argc, char *argv[]){
         unsigned char move = find_best_move(state, my_index);
         
         /* Liberar lock de lectura */
-        release_read_lock(sync);
+        releaseReadLock(sync);
         
         /* Enviar movimiento al master por STDOUT */
         if (write(STDOUT_FILENO, &move, 1) != 1) {
-            perror("write");
+            /* Pipe cerrado o error - el juego probablemente terminó */
             break;
         }
         
         /* Esperar ACK del master */
         sem_wait(&sync->playersAllowedToMove[my_index]);
+        
+        /* Verificar si el juego terminó después de ser desbloqueado */
+        if (state->gameOver) {
+            break;
+        }
     }
 
     stateClose(stateFd, state, width, height);

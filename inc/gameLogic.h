@@ -37,6 +37,6 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout);
 void printResults(GameState *state);
 
 /* Cleanup resources */
-void cleanup(PlayerProcess *processes, int count, GameState *state, semaphoresStatus *sync, int stateFd, int syncFd, size_t width, size_t height);
+void cleanup(PlayerProcess *processes, int count, GameState *state, semaphoresStatus *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid);
 
 #endif

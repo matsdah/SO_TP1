@@ -32,11 +32,15 @@ int main(int argc, char *argv[]){
         /* Esperar a que el master indique que hay cambios */
         sem_wait(&sync->printNeeded);
         
+        /* Adquirir lock de lectura para acceder al estado */
+        acquireReadLock(sync);
+        
         /* Verificar si el juego terminó */
         if (state->gameOver) {
             clearScreen();
             printView(state);
             printStats(state);
+            releaseReadLock(sync);
             sem_post(&sync->renderDone);
             break;
         }
@@ -44,6 +48,9 @@ int main(int argc, char *argv[]){
         clearScreen();
         printView(state);
         printStats(state);
+        
+        /* Liberar lock de lectura */
+        releaseReadLock(sync);
 
         /* Notificar al master que terminamos de imprimir */
         sem_post(&sync->renderDone);
