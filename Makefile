@@ -10,23 +10,32 @@ LIB_SOURCES = \
 	$(SRCDIR)/libs/paramsHandler.c \
 	$(SRCDIR)/libs/shmCommon.c \
 	$(SRCDIR)/libs/shmState.c \
-	$(SRCDIR)/libs/shmSync.c
+	$(SRCDIR)/libs/shmSync.c \
+	$(SRCDIR)/libs/gameLogic.c \
+	$(SRCDIR)/libs/playerAI.c \
+	$(SRCDIR)/libs/viewRender.c
 
 MASTER_SOURCES = \
 	$(SRCDIR)/master.c \
-	$(LIB_SOURCES)
+	$(SRCDIR)/libs/paramsHandler.c \
+	$(SRCDIR)/libs/shmCommon.c \
+	$(SRCDIR)/libs/shmState.c \
+	$(SRCDIR)/libs/shmSync.c \
+	$(SRCDIR)/libs/gameLogic.c
 
 VISTA_SOURCES = \
 	$(SRCDIR)/vista.c \
 	$(SRCDIR)/libs/shmCommon.c \
 	$(SRCDIR)/libs/shmState.c \
-	$(SRCDIR)/libs/shmSync.c
+	$(SRCDIR)/libs/shmSync.c \
+	$(SRCDIR)/libs/viewRender.c
 
 JUGADOR_SOURCES = \
 	$(SRCDIR)/jugador.c \
 	$(SRCDIR)/libs/shmCommon.c \
 	$(SRCDIR)/libs/shmState.c \
-	$(SRCDIR)/libs/shmSync.c
+	$(SRCDIR)/libs/shmSync.c \
+	$(SRCDIR)/libs/playerAI.c
 
 MASTER_OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(MASTER_SOURCES))
 VISTA_OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(VISTA_SOURCES))

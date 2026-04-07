@@ -1,14 +1,11 @@
-#ifndef VISTA_H
-#define VISTA_H
+#ifndef VIEW_RENDER_H
+#define VIEW_RENDER_H
 
-#include <stddef.h>
-#include <unistd.h>
-#include <string.h>
-#include <semaphore.h>
 #include <structures.h>
+#include <stddef.h>
 
 /* Funciones para imprimir la vista del juego. */
-void printView(int * board,size_t height,size_t width);
+void printView(const GameState *gameState);
 
 /* Función para limpiar la pantalla. */
 void clearScreen();

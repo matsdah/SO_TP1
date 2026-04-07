@@ -75,11 +75,18 @@ typedef struct{
 // To help parsing parameters and their functions
 typedef int (*ParamHandler)(const char *value, void *context);
 
+
 typedef struct{
     const char *flag;
     int expects_value;
     ParamHandler handler;
     const char *help;
 } Parameter;
+
+
+typedef struct {
+    pid_t pid;
+    int pipeFd;
+} PlayerProcess;
 
 #endif

@@ -14,11 +14,11 @@
 - [x] Crear e inicializar memoria compartida `/game_sync` (semáforos anónimos).
 - [x] Crear canales de comunicación (Pipes anónimos) para recibir movimientos.
 - [x] Implementar el "spawning" de procesos (Vista y Jugadores) usando `fork` y `exec`.
-- [ ] Implementar distribución inicial determinística de jugadores en el tablero.
-- [ ] Implementar el bucle principal de juego:
-    - [ ] Recibir movimientos mediante `select` sobre los pipes de los jugadores.
-    - [ ] Validar movimientos (evitar colisiones, límites del tablero, celdas ocupadas).
-    - [ ] Actualizar el estado del juego y otorgar recompensas (1-9).
+- [x] Implementar distribución inicial determinística de jugadores en el tablero.
+- [x] Implementar el bucle principal de juego:
+    - [x] Recibir movimientos mediante `select` sobre los pipes de los jugadores.
+    - [x] Validar movimientos (evitar colisiones, límites del tablero, celdas ocupadas).
+    - [ ] Actualizar el estado del juego y otorgar recompensas (1-9). (Eliminar funciones repetidas y agregarle la seed)
     - [ ] Notificar al jugador que su movimiento fue procesado.
     - [ ] Política de atención Round-Robin para solicitudes.
 - [ ] Sincronización con la Vista:

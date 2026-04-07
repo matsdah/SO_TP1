@@ -1,3 +1,6 @@
+#ifndef PLAYER_AI_H
+#define PLAYER_AI_H
+
 #include <structures.h>
 
 /* Encuentra el índice del jugador actual por PID. */
@@ -11,3 +14,5 @@ void release_read_lock(semaphoresStatus *sync);
 
 /* Encuentra la celda con mayor valor adyacente. */
 unsigned char find_best_move(GameState *state, int my_index);
+
+#endif
