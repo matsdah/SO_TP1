@@ -5,37 +5,38 @@
 #include <stdlib.h>
 #include <semaphore.h>
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <width> <height>\n", argv[0]);
         return 1;
     }
 
-    size_t width = (size_t)atoi(argv[1]);
-    size_t height = (size_t)atoi(argv[2]);
+    size_t width = atoi(argv[1]);
+    size_t height = atoi(argv[2]);
 
     int syncFd = -1;
     int stateFd = -1;
-    semaphoresStatus *sync = NULL;
+
+    SyncData *sync = NULL;
     GameState *state = NULL;
 
     if (syncOpen(&syncFd, &sync) == -1) {
         perror("syncOpen");
         return 1;
     }
+
     if (stateOpen(&stateFd, &state, width, height) == -1) {
         perror("stateOpen");
+        syncClose(syncFd, sync);
         return 1;
     }
 
+    /* Loop principal de renderizado */
     while (1) {
-        /* Esperar a que el master indique que hay cambios */
         sem_wait(&sync->printNeeded);
-        
-        /* Adquirir lock de lectura para acceder al estado */
+
         acquireReadLock(sync);
-        
-        /* Verificar si el juego terminó */
+
         if (state->gameOver) {
             clearScreen();
             printView(state);
@@ -48,15 +49,14 @@ int main(int argc, char *argv[]){
         clearScreen();
         printView(state);
         printStats(state);
-        
-        /* Liberar lock de lectura */
+
         releaseReadLock(sync);
 
-        /* Notificar al master que terminamos de imprimir */
         sem_post(&sync->renderDone);
     }
 
-    (void)syncClose(syncFd, sync);
-    (void)stateClose(stateFd, state, width, height);
+    syncClose(syncFd, sync);
+    stateClose(stateFd, state, width, height);
+
     return 0;
 }

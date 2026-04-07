@@ -4,44 +4,40 @@
 #include <semaphore.h>
 
 /* Direcciones: 0=UP, 1=UP_RIGHT, 2=RIGHT, 3=DOWN_RIGHT, 4=DOWN, 5=DOWN_LEFT, 6=LEFT, 7=UP_LEFT */
-static const int dx[] = {0, 1, 1, 1, 0, -1, -1, -1};
-static const int dy[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+static const int DX[] = {0, 1, 1, 1, 0, -1, -1, -1};
+static const int DY[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
-int find_my_index(GameState *state){
-    pid_t my_pid = getpid();
-    for (int i = 0; i < state->playersCount; i++) {
-        if (state->players[i].playerPID == my_pid) {
+int findMyIndex(GameState *state) {
+    pid_t myPid = getpid();
+    for (int i = 0; i < state->playerCount; i++) {
+        if (state->players[i].pid == myPid) {
             return i;
         }
     }
     return -1;
 }
 
-unsigned char find_best_move(GameState *state, int my_index) {
-    int my_x = state->players[my_index].x;
-    int my_y = state->players[my_index].y;
-    int best_dir = -1;
-    int best_value = -1;
-    
+unsigned char findBestMove(GameState *state, int myIndex) {
+    int myX = state->players[myIndex].x;
+    int myY = state->players[myIndex].y;
+    int bestDir = -1;
+    int bestValue = -1;
+
     for (int dir = 0; dir < 8; dir++) {
-        int nx = my_x + dx[dir];
-        int ny = my_y + dy[dir];
-        
-        /* Verificar límites */
+        int nx = myX + DX[dir];
+        int ny = myY + DY[dir];
+
         if (nx < 0 || nx >= state->width || ny < 0 || ny >= state->height) {
             continue;
         }
-        
-        /* Obtener valor de la celda */
+
         int cell = BOARD_AT(state->board, state->width, ny, nx);
-        
-        /* Solo celdas libres (valor positivo) */
-        if (cell > 0 && cell > best_value) {
-            best_value = cell;
-            best_dir = dir;
+
+        if (cell > 0 && cell > bestValue) {
+            bestValue = cell;
+            bestDir = dir;
         }
     }
-    
-    /* Si no hay movimientos válidos, enviar 0 (UP) como movimiento inválido */
-    return (best_dir == -1) ? 0 : (unsigned char)best_dir;
+
+    return (bestDir == -1) ? 0 : (unsigned char)bestDir;
 }

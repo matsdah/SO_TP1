@@ -4,47 +4,47 @@
 #include <string.h>
 #include <sys/mman.h>
 
-int syncCreate(int * shmFd, semaphoresStatus ** gameSync){
-    if(!gameSync || !shmFd){
+int syncCreate(int *shmFd, SyncData **gameSync) {
+    if (!gameSync || !shmFd) {
         return -1;
     }
 
-    void * addr = createAndMap(GAME_SYNC_SHM_NAME, sizeof(semaphoresStatus), 0644, shmFd, PROT_READ | PROT_WRITE);
-    if(addr == MAP_FAILED){
+    void *addr = shmCreateAndMap(GAME_SYNC_SHM_NAME, sizeof(SyncData), 
+                                     0644, shmFd, PROT_READ | PROT_WRITE);
+    if (addr == MAP_FAILED) {
         return -1;
     }
 
-    *gameSync = (semaphoresStatus *)addr;
+    *gameSync = (SyncData *)addr;
     return 0;
 }
 
-int syncInit(semaphoresStatus * gameSync, unsigned int playersCount){
-    if(!gameSync){
+int syncInit(SyncData *gameSync, unsigned int playerCount) {
+    if (!gameSync) {
         return -1;
     }
-    memset(gameSync, 0, sizeof(semaphoresStatus));
+    memset(gameSync, 0, sizeof(SyncData));
 
-    if(sem_init(&gameSync->printNeeded, 1, 0) == -1){
+    if (sem_init(&gameSync->printNeeded, 1, 0) == -1) {
         return -1;
     }
-    if(sem_init(&gameSync->renderDone, 1, 0) == -1){
+    if (sem_init(&gameSync->renderDone, 1, 0) == -1) {
+        return -1;
+    }
+    if (sem_init(&gameSync->masterMutex, 1, 1) == -1) {
+        return -1;
+    }
+    if (sem_init(&gameSync->stateMutex, 1, 1) == -1) {
+        return -1;
+    }
+    if (sem_init(&gameSync->readCountMutex, 1, 1) == -1) {
         return -1;
     }
 
-    if(sem_init(&gameSync->masterMutex, 1, 1) == -1){
-        return -1;
-    }
-    if(sem_init(&gameSync->gameStateMutex, 1, 1) == -1){
-        return -1;
-    }
-    if(sem_init(&gameSync->readCountMutex, 1, 1) == -1){
-        return -1;
-    }
+    gameSync->readersCount = 0;
 
-    gameSync ->playersReadingStatus = 0;
-
-    for(unsigned int i = 0; i < playersCount; i++){
-        if(sem_init(&gameSync->playersAllowedToMove[i], 1, 0) == -1){
+    for (unsigned int i = 0; i < playerCount; i++) {
+        if (sem_init(&gameSync->playerSem[i], 1, 0) == -1) {
             return -1;
         }
     }
@@ -52,80 +52,82 @@ int syncInit(semaphoresStatus * gameSync, unsigned int playersCount){
     return 0;
 }
 
-int syncDestroy(semaphoresStatus * gameSync, unsigned int playersCount){
-    int toReturn = 0;
-    
-    if(!gameSync){
+int syncDestroy(SyncData *gameSync, unsigned int playerCount) {
+    int result = 0;
+
+    if (!gameSync) {
         return -1;
     }
 
-    if(sem_destroy(&gameSync->printNeeded) == -1){
-        toReturn = -1;
+    if (sem_destroy(&gameSync->printNeeded) == -1) {
+        result = -1;
     }
-    if(sem_destroy(&gameSync->renderDone) == -1){
-        toReturn = -1;
+    if (sem_destroy(&gameSync->renderDone) == -1) {
+        result = -1;
     }
-    if(sem_destroy(&gameSync->masterMutex) == -1){
-        toReturn = -1;
+    if (sem_destroy(&gameSync->masterMutex) == -1) {
+        result = -1;
     }
-    if(sem_destroy(&gameSync->gameStateMutex) == -1){
-        toReturn = -1;
+    if (sem_destroy(&gameSync->stateMutex) == -1) {
+        result = -1;
     }
-    if(sem_destroy(&gameSync->readCountMutex) == -1){
-        toReturn = -1;
+    if (sem_destroy(&gameSync->readCountMutex) == -1) {
+        result = -1;
     }
 
-    for(unsigned int i = 0; i < playersCount; i++){
-        if(sem_destroy(&gameSync->playersAllowedToMove[i]) == -1){
-            toReturn = -1;
+    for (unsigned int i = 0; i < playerCount; i++) {
+        if (sem_destroy(&gameSync->playerSem[i]) == -1) {
+            result = -1;
         }
     }
 
-    return toReturn;
+    return result;
 }
 
-int syncUnlink(){
-    return removeFd(GAME_SYNC_SHM_NAME);
+int syncUnlink(void) {
+    return shmRemoveFd(GAME_SYNC_SHM_NAME);
 }
 
-int syncOpen(int * shmFd, semaphoresStatus ** gameSync){
-    if(!gameSync || !shmFd){
+int syncOpen(int *shmFd, SyncData **gameSync) {
+    if (!gameSync || !shmFd) {
         return -1;
     }
 
-    void * addr = openAndMap(GAME_SYNC_SHM_NAME, sizeof(semaphoresStatus), O_RDWR, shmFd, PROT_READ | PROT_WRITE);
-    if(addr == MAP_FAILED){
+    void *addr = shmOpenAndMap(GAME_SYNC_SHM_NAME, sizeof(SyncData), 
+                                   O_RDWR, shmFd, PROT_READ | PROT_WRITE);
+    if (addr == MAP_FAILED) {
         return -1;
     }
 
-    *gameSync = (semaphoresStatus *)addr;
+    *gameSync = (SyncData *)addr;
     return 0;
 }
 
-int syncClose(int shmFd, semaphoresStatus * gameSync){
-    if(!gameSync){
+int syncClose(int shmFd, SyncData *gameSync) {
+    if (!gameSync) {
         return -1;
     }
 
-    return unmapFd(gameSync, sizeof(semaphoresStatus)) == -1 || closeFd(shmFd) == -1 ? -1 : 0;
+    return (shmUnmapFd(gameSync, sizeof(SyncData)) == -1 || 
+            shmCloseFd(shmFd) == -1) ? -1 : 0;
 }
 
-void acquireReadLock(semaphoresStatus *sync){
+void acquireReadLock(SyncData *sync) {
     sem_wait(&sync->masterMutex);       /* Respetar prioridad del escritor */
     sem_wait(&sync->readCountMutex);
-    sync->playersReadingStatus++;
-    if (sync->playersReadingStatus == 1) {
-        sem_wait(&sync->gameStateMutex);  /* Primer lector bloquea */
+    sync->readersCount++;
+    if (sync->readersCount == 1) {
+        sem_wait(&sync->stateMutex);    /* Primer lector bloquea */
     }
     sem_post(&sync->readCountMutex);
     sem_post(&sync->masterMutex);
 }
 
-void releaseReadLock(semaphoresStatus *sync){
+void releaseReadLock(SyncData *sync) {
     sem_wait(&sync->readCountMutex);
-    sync->playersReadingStatus--;
-    if (sync->playersReadingStatus == 0) {
-        sem_post(&sync->gameStateMutex);  /* Último lector desbloquea */
+    sync->readersCount--;
+    if (sync->readersCount == 0) {
+        sem_post(&sync->stateMutex);    /* Ultimo lector desbloquea */
     }
     sem_post(&sync->readCountMutex);
 }

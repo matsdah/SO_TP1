@@ -3,10 +3,10 @@
 
 #include <structures.h>
 
-/* Encuentra el índice del jugador actual por PID. */
-int find_my_index(GameState *state);
+/* Busca el indice del jugador actual comparando PIDs. */
+int findMyIndex(GameState *state);
 
-/* Encuentra la celda con mayor valor adyacente. */
-unsigned char find_best_move(GameState *state, int my_index);
+/* Calcula el mejor movimiento usando estrategia greedy (mayor valor adyacente). */
+unsigned char findBestMove(GameState *state, int myIndex);
 
 #endif

@@ -4,16 +4,16 @@
 #include <structures.h>
 #include <stddef.h>
 
-/* Funciones para imprimir la vista del juego. */
+/* Renderiza el tablero completo con colores por jugador. */
 void printView(const GameState *gameState);
 
-/* Función para limpiar la pantalla. */
-void clearScreen();
+/* Limpia la pantalla de la terminal. */
+void clearScreen(void);
 
-/* Función para imprimir las estadísticas del juego. */
-void printStats(GameState * gameState);
+/* Imprime las estadisticas de todos los jugadores. */
+void printStats(GameState *gameState);
 
-/* Función para imprimir las estadísticas de un jugador. */
-void printPlayerStats(Player* player_state);
+/* Imprime las estadisticas de un jugador individual. */
+void printPlayerStats(Player *playerState);
 
 #endif

@@ -5,28 +5,28 @@
 
 #define GAME_SYNC_SHM_NAME "/game_sync"
 
-/* Master: crea + mapea memoria compartida del semaforo */
-int syncCreate(int * shmFd, semaphoresStatus ** gameSync);
+/* Crea y mapea la memoria compartida de sincronizacion (solo master). */
+int syncCreate(int *shmFd, SyncData **gameSync);
 
-/* Master: Inicializa semaforos y contador */
-int syncInit(semaphoresStatus * gameSync, unsigned int playersCount);
+/* Inicializa los semaforos y contadores de sincronizacion (solo master). */
+int syncInit(SyncData *gameSync, unsigned int playerCount);
 
-/* Master: destruye semaforos */
-int syncDestroy(semaphoresStatus * gameSync, unsigned int playersCount);
+/* Destruye los semaforos de sincronizacion (solo master). */
+int syncDestroy(SyncData *gameSync, unsigned int playerCount);
 
-/* Master: elimina SHM */
-int syncUnlink();
+/* Elimina el objeto de memoria compartida de sincronizacion. */
+int syncUnlink(void);
 
-/* Vista/Jugador: abre + mapea memoria compartida del semaforo */
-int syncOpen(int * shmFd, semaphoresStatus ** gameSync);
+/* Abre y mapea la memoria compartida de sincronizacion (vista/jugador). */
+int syncOpen(int *shmFd, SyncData **gameSync);
 
-/* Cierra mapping + fd */
-int syncClose(int shmFd, semaphoresStatus * gameSync);
+/* Cierra el mapping y el file descriptor de sincronizacion. */
+int syncClose(int shmFd, SyncData *gameSync);
 
-/* Readers-Writers: Acquire read lock (for vista/jugador) */
-void acquireReadLock(semaphoresStatus *sync);
+/* Adquiere el lock de lectura (patron readers-writers). */
+void acquireReadLock(SyncData *sync);
 
-/* Readers-Writers: Release read lock (for vista/jugador) */
-void releaseReadLock(semaphoresStatus *sync);
+/* Libera el lock de lectura (patron readers-writers). */
+void releaseReadLock(SyncData *sync);
 
 #endif

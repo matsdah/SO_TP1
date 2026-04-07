@@ -1,29 +1,31 @@
-#ifndef SHM_H
-#define SHM_H
+#ifndef SHM_COMMON_H
+#define SHM_COMMON_H
 
 #include <stddef.h>
 #include <sys/types.h>
 
-// Crea una SHM nueva
-int createFd(const char * name, size_t size, mode_t mode);
+/* Crea un objeto de memoria compartida con el nombre y tamano especificado. */
+int shmCreateFd(const char *name, size_t size, mode_t mode);
 
-//Abre una SHM existente con flags
-int openFd(const char * name, int oFlag);
+/* Abre un objeto de memoria compartida existente. */
+int shmOpenFd(const char *name, int flags);
 
-//Mapea un fd de SHM en memoria compartida
-void * mapFd(int fd, size_t size, int prot);
+/* Mapea un file descriptor de memoria compartida en el espacio de direcciones. */
+void *shmMapFd(int fd, size_t size, int prot);
 
-//Desmapea una region mapeada
-int unmapFd(void * addr, size_t size);
+/* Desmapea una region de memoria compartida. */
+int shmUnmapFd(void *addr, size_t size);
 
-//Cierra un fd
-int closeFd(int fd);
+/* Cierra un file descriptor de memoria compartida. */
+int shmCloseFd(int fd);
 
-//Elimina el objeto de SHM
-int removeFd(const char * name);
+/* Elimina un objeto de memoria compartida por nombre. */
+int shmRemoveFd(const char *name);
 
-void * createAndMap(const char * name, size_t size, mode_t mode, int * fdOut, int prot);
+/* Crea y mapea memoria compartida en una sola operacion. */
+void *shmCreateAndMap(const char *name, size_t size, mode_t mode, int *fdOut, int prot);
 
-void * openAndMap(const char * name, size_t size, int oFlag, int * fdOut, int prot);
+/* Abre y mapea memoria compartida existente en una sola operacion. */
+void *shmOpenAndMap(const char *name, size_t size, int flags, int *fdOut, int prot);
 
 #endif

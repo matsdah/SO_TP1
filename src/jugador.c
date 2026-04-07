@@ -6,72 +6,68 @@
 #include <unistd.h>
 #include <semaphore.h>
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <width> <height>\n", argv[0]);
         return 1;
     }
 
-    size_t width = (size_t)atoi(argv[1]);
-    size_t height = (size_t)atoi(argv[2]);
+    size_t width = atoi(argv[1]);
+    size_t height = atoi(argv[2]);
 
     int syncFd = -1;
     int stateFd = -1;
-    semaphoresStatus *sync = NULL;
+
+    SyncData *sync = NULL;
     GameState *state = NULL;
 
     if (syncOpen(&syncFd, &sync) == -1) {
         perror("syncOpen");
         return 1;
     }
+
     if (stateOpen(&stateFd, &state, width, height) == -1) {
         perror("stateOpen");
         syncClose(syncFd, sync);
         return 1;
     }
 
-    /* Encontrar mi índice */
-    int my_index = find_my_index(state);
-    if (my_index == -1) {
+    /* Encontrar mi indice */
+    int myIndex = findMyIndex(state);
+
+    if (myIndex == -1) {
         fprintf(stderr, "Error: Player not found in game state\n");
         stateClose(stateFd, state, width, height);
         syncClose(syncFd, sync);
         return 1;
     }
 
-    /* Bucle principal del jugador */
+    /* Loop principal del jugador */
     while (1) {
-        /* Adquirir lock de lectura */
         acquireReadLock(sync);
-        
-        /* Verificar si el juego terminó */
+
         if (state->gameOver) {
             releaseReadLock(sync);
             break;
         }
-        
-        /* Encontrar el mejor movimiento */
-        unsigned char move = find_best_move(state, my_index);
-        
-        /* Liberar lock de lectura */
+
+        unsigned char move = findBestMove(state, myIndex);
+
         releaseReadLock(sync);
-        
-        /* Enviar movimiento al master por STDOUT */
+
         if (write(STDOUT_FILENO, &move, 1) != 1) {
-            /* Pipe cerrado o error - el juego probablemente terminó */
             break;
         }
-        
-        /* Esperar ACK del master */
-        sem_wait(&sync->playersAllowedToMove[my_index]);
-        
-        /* Verificar si el juego terminó después de ser desbloqueado */
+
+        sem_wait(&sync->playerSem[myIndex]);
+
         if (state->gameOver) {
             break;
         }
     }
 
-    stateClose(stateFd, state, width, height);
     syncClose(syncFd, sync);
+    stateClose(stateFd, state, width, height);
+
     return 0;
 }

@@ -3,84 +3,80 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+int shmCreateFd(const char *name, size_t size, mode_t mode) {
+    int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, mode);
+    if (fd == -1) {
+        return -1;
+    }
 
-int createFd(const char * name, size_t size, mode_t mode){
-	int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, mode);
-	if(fd == -1){
-		return -1;
-	}
+    if (ftruncate(fd, (off_t)size) == -1) {
+        close(fd);
+        shm_unlink(name);
+        return -1;
+    }
 
-	if(ftruncate(fd, (off_t)size) == -1){
-		close(fd);
-		shm_unlink(name);
-		return -1;
-	}
-
-	return fd;
+    return fd;
 }
 
-int openFd(const char * name, int oFlag){
-	return shm_open(name, oFlag, 0);
+int shmOpenFd(const char *name, int flags) {
+    return shm_open(name, flags, 0);
 }
 
-void * mapFd(int fd, size_t size, int prot){
-	return mmap(NULL, size, prot, MAP_SHARED, fd, 0);
+void *shmMapFd(int fd, size_t size, int prot) {
+    return mmap(NULL, size, prot, MAP_SHARED, fd, 0);
 }
 
-int unmapFd(void * addr, size_t size){
-	return munmap(addr, size);
+int shmUnmapFd(void *addr, size_t size) {
+    return munmap(addr, size);
 }
 
-int closeFd(int fd){
-	return close(fd);
+int shmCloseFd(int fd) {
+    return close(fd);
 }
 
-int removeFd(const char * name){
-	return shm_unlink(name);
+int shmRemoveFd(const char *name) {
+    return shm_unlink(name);
 }
 
-void * createAndMap(const char * name, size_t size, mode_t mode, int * fdOut, int prot){
-	int fd = createFd(name, size, mode);
-	if(fd == -1){
-		return MAP_FAILED;
-	}
+void *shmCreateAndMap(const char *name, size_t size, mode_t mode, int *fdOut, int prot) {
+    int fd = shmCreateFd(name, size, mode);
+    if (fd == -1) {
+        return MAP_FAILED;
+    }
 
-	void * addr = mapFd(fd, size, prot);
-	if(addr == MAP_FAILED){
-		close(fd);
-		shm_unlink(name);
-		return MAP_FAILED;
-	}
+    void *addr = shmMapFd(fd, size, prot);
+    if (addr == MAP_FAILED) {
+        close(fd);
+        shm_unlink(name);
+        return MAP_FAILED;
+    }
 
-	if(fdOut != NULL){
-		*fdOut = fd;
-	} else{
-		close(fd);
-	}
+    if (fdOut != NULL) {
+        *fdOut = fd;
+    } else {
+        close(fd);
+    }
 
-	return addr;
+    return addr;
 }
 
-void * openAndMap(const char * name, size_t size, int oFlag, int * fdOut, int prot){
-	int fd = openFd(name, oFlag);
-	if(fd == -1){
-		return MAP_FAILED;
-	}
+void *shmOpenAndMap(const char *name, size_t size, int flags, int *fdOut, int prot) {
+    int fd = shmOpenFd(name, flags);
+    if (fd == -1) {
+        return MAP_FAILED;
+    }
 
-	void * addr = mapFd(fd, size, prot);
-	if(addr == MAP_FAILED){
-		close(fd);
-		return MAP_FAILED;
-	}
+    void *addr = shmMapFd(fd, size, prot);
+    if (addr == MAP_FAILED) {
+        close(fd);
+        return MAP_FAILED;
+    }
 
-	if(fdOut){
-		*fdOut = fd;
-	} else{
-		close(fd);
-	}
+    if (fdOut) {
+        *fdOut = fd;
+    } else {
+        close(fd);
+    }
 
-	return addr;
+    return addr;
 }
-
-
-

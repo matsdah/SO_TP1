@@ -5,88 +5,88 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-/* Dimensión máxima del nombre de un jugador */
+/* Dimension maxima del nombre de un jugador. */
 #define NAME_DIM 16
 
-/* Número máximo de jugadores */
+/* Numero maximo de jugadores. */
 #define CANT_PLAYERS 9
 
-/* Macro para calcular el tamaño del estado del juego */
+/* Macro para calcular el tamano del estado del juego. */
 #define GAME_STATUS_SIZE(GameState, width, height) (sizeof(GameState) + (sizeof(int) * (width * height)))
 
-/* Macro para verificar si una posición es la cabeza de un jugador */
+/* Macro para verificar si una posicion es la cabeza de un jugador. */
 #define IS_HEAD(x, y, j, i) ((x) == (j) && (y) == (i))
 
-/* Macro para acceder a una posición del tablero */
+/* Macro para acceder a una posicion del tablero. */
 #define BOARD_AT(board, w, i, j) ((board)[((i) * (w)) + (j)])
 
 
-/* Estructura para representar el estado del juego */
-typedef struct{
-    char playerName[NAME_DIM];
-    unsigned int playerScore;
-    unsigned int validMovements;
-    unsigned int invalidMovements;
-    unsigned short x;                   /* Posicion en el tablero */
-    unsigned short y;
-    pid_t playerPID;                    /* PID del proceso del jugador */
-    bool valid;                         /* Indica si el jugador tiene movimientos válidos */
+/* Estructura que representa a un jugador. */
+typedef struct {
+    char name[NAME_DIM];                /* Nombre del jugador */
+    unsigned int score;                 /* Puntaje acumulado */
+    unsigned int validMoves;            /* Cantidad de movimientos validos */
+    unsigned int invalidMoves;          /* Cantidad de movimientos invalidos */
+    unsigned short x;                   /* Posicion X en el tablero */
+    unsigned short y;                   /* Posicion Y en el tablero */
+    pid_t pid;                          /* PID del proceso del jugador */
+    bool isValid;                       /* true si el jugador tiene movimientos validos */
 } Player;
 
 
-/* Estructura para representar el estado del tablero */
-typedef struct{
+/* Estructura que representa el estado del juego. */
+typedef struct {
     unsigned short width;               /* Ancho del tablero */
     unsigned short height;              /* Alto del tablero */
-    unsigned char playersCount;         /* Cantidad de jugadores en el juego */
-    Player players[CANT_PLAYERS];       /* Información de los jugadores */
-    bool gameOver;                      /* Indica si el juego ha terminado */
-    int board[];        /* Puntero al comienzo del tablero. fila-0, fila-1, ..., fila-n-1 */   
+    unsigned char playerCount;          /* Cantidad de jugadores en el juego */
+    Player players[CANT_PLAYERS];       /* Informacion de los jugadores */
+    bool gameOver;                      /* true si el juego ha terminado */
+    int board[];                        /* Tablero flexible: fila-0, fila-1, ..., fila-n-1 */
 } GameState;
 
 
-/* Estructura para representar el estado de los semáforos */
-typedef struct{ 
-    sem_t printNeeded;           /* Indicarle a la vista que hay cambios por imprimir */
-    sem_t renderDone;             /* Indicarle al master que la vista terminó de imprimir */
-    sem_t masterMutex;          /* Mutex para evitar inanición del master al acceder al estado */
-    sem_t gameStateMutex;       /* Mutex para evitar condiciones de carrera. */
-    sem_t readCountMutex;    /* Mutex para la siguiente variable */
-
-    /* Cantidad de jugadores leyendo el estado */
-    unsigned int playersReadingStatus;
-    sem_t playersAllowedToMove [CANT_PLAYERS]; /* Le indica a cada jugador que puede enviar 1 movimiento */
-} semaphoresStatus;
+/* Estructura que contiene los semaforos de sincronizacion. */
+typedef struct {
+    sem_t printNeeded;                  /* Indica a la vista que hay cambios por imprimir */
+    sem_t renderDone;                   /* Indica al master que la vista termino de imprimir */
+    sem_t masterMutex;                  /* Mutex para prioridad del master */
+    sem_t stateMutex;                   /* Mutex para acceso exclusivo al estado */
+    sem_t readCountMutex;               /* Mutex para el contador de lectores */
+    unsigned int readersCount;          /* Cantidad de procesos leyendo el estado */
+    sem_t playerSem[CANT_PLAYERS];      /* Semaforo por jugador para enviar movimiento */
+} SyncData;
 
 
-/* Parameters values. */ 
-typedef struct{
-    size_t width;       /* Ancho del tablero */
-    size_t height;      /* Alto del tablero */
-    size_t delay;       /* Retraso en milisegundos */
-    size_t timeout;     /* Timeout en segundos */
-    size_t seed;        /* Semilla para la generación del tablero */
-    char * view;        /* Ruta del binario de la vista */
-    char * players[CANT_PLAYERS];   /* Rutas de los binarios de los jugadores */
-    size_t amount_players;          /* Cantidad de jugadores */
-} Parameters;
+/* Estructura con los parametros de configuracion del juego. */
+typedef struct {
+    size_t width;                       /* Ancho del tablero */
+    size_t height;                      /* Alto del tablero */
+    size_t delay;                       /* Retraso en milisegundos */
+    size_t timeout;                     /* Timeout en segundos */
+    size_t seed;                        /* Semilla para generacion aleatoria */
+    char *view;                         /* Ruta del binario de la vista */
+    char *players[CANT_PLAYERS];        /* Rutas de los binarios de los jugadores */
+    size_t playerCount;                 /* Cantidad de jugadores */
+} Params;
 
 
-// To help parsing parameters and their functions
+/* Tipo para funciones manejadoras de parametros. */
 typedef int (*ParamHandler)(const char *value, void *context);
 
 
-typedef struct{
-    const char *flag;
-    int expects_value;
-    ParamHandler handler;
-    const char *help;
-} Parameter;
-
-
+/* Estructura que describe un parametro de linea de comandos. */
 typedef struct {
-    pid_t pid;
-    int pipeFd;
+    const char *flag;                   /* Flag del parametro (ej: "-w") */
+    int expectsValue;                   /* 1 si espera un valor, 0 si no */
+    ParamHandler handler;               /* Funcion manejadora */
+    const char *help;                   /* Texto de ayuda */
+} ParamDef;
+
+
+/* Estructura que representa un proceso jugador. */
+typedef struct {
+    pid_t pid;                          /* PID del proceso */
+    int pipeFd;                         /* File descriptor del pipe */
 } PlayerProcess;
 
 #endif

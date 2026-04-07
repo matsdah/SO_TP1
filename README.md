@@ -90,16 +90,16 @@ Los binarios generados se encuentran en el directorio `bin/`:
 - **Pipes anonimos**: Comunicacion jugador -> master (movimientos)
 
 - **Semaforos POSIX**:
-  - `masterMutex` / `gameStateMutex` - Patron readers-writers
-  - `readerCount` - Contador de lectores activos
-  - `printNeeded` / `renderDone` - Sincronizacion con vista
-  - `playersAllowedToMove[]` - ACK por jugador
+  - `master_mutex` / `state_mutex` - Patron readers-writers
+  - `readers_count` - Contador de lectores activos
+  - `print_needed` / `render_done` - Sincronizacion con vista
+  - `player_sem[]` - ACK por jugador
 
 ### Sincronizacion
 
 Se implementa un patron **readers-writers** con prioridad al escritor (master):
 
-- **Lectores** (vista, jugadores): Pueden leer concurrentemente usando `acquireReadLock()` / `releaseReadLock()`
+- **Lectores** (vista, jugadores): Pueden leer concurrentemente usando `sync_acquire_read_lock()` / `sync_release_read_lock()`
 - **Escritor** (master): Tiene acceso exclusivo durante actualizaciones
 
 ## Estructura del Proyecto
@@ -130,6 +130,39 @@ SO_TP1/
 ├── Makefile
 └── README.md
 ```
+
+## API Principal
+
+### Tipos de datos (structures.h)
+
+| Tipo | Descripcion |
+|------|-------------|
+| `player_t` | Informacion de un jugador (nombre, score, posicion, etc.) |
+| `game_state_t` | Estado completo del juego (tablero, jugadores, flags) |
+| `sync_t` | Semaforos de sincronizacion |
+| `params_t` | Parametros de configuracion |
+| `player_process_t` | Proceso jugador (PID y pipe) |
+
+### Funciones principales
+
+| Modulo | Funcion | Descripcion |
+|--------|---------|-------------|
+| gameLogic | `board_init()` | Inicializa tablero con valores aleatorios |
+| gameLogic | `players_place()` | Posiciona jugadores en el tablero |
+| gameLogic | `players_spawn()` | Crea procesos de jugadores |
+| gameLogic | `move_validate()` | Valida un movimiento |
+| gameLogic | `move_apply()` | Aplica un movimiento valido |
+| gameLogic | `game_check_over()` | Verifica fin de juego |
+| gameLogic | `cleanup()` | Limpia todos los recursos |
+| shmState | `state_create()` | Crea memoria compartida del estado |
+| shmState | `state_open()` | Abre memoria compartida existente |
+| shmSync | `sync_create()` | Crea memoria compartida de sincronizacion |
+| shmSync | `sync_acquire_read_lock()` | Adquiere lock de lectura |
+| shmSync | `sync_release_read_lock()` | Libera lock de lectura |
+| viewRender | `view_print()` | Renderiza el tablero |
+| viewRender | `view_clear_screen()` | Limpia la pantalla |
+| playerAI | `player_find_index()` | Encuentra indice del jugador por PID |
+| playerAI | `player_find_best_move()` | Calcula mejor movimiento (greedy) |
 
 ## Limitaciones Conocidas
 
