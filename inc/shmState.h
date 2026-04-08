@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 #include <structures.h>
+#include <shmCommon.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #define GAME_STATE_SHM_NAME "/game_state"
 

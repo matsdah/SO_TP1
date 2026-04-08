@@ -1,15 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <structures.h>
-#include <paramsHandler.h>
-#include <shmState.h>
-#include <shmSync.h>
 #include <gameLogic.h>
 
 /* Variables globales para el signal handler */

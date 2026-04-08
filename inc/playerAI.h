@@ -2,6 +2,12 @@
 #define PLAYER_AI_H
 
 #include <structures.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <semaphore.h>
+#include <shmState.h>
+#include <shmSync.h>
 
 /* Busca el indice del jugador actual comparando PIDs. */
 int findMyIndex(GameState *state);

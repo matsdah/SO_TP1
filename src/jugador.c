@@ -1,10 +1,5 @@
-#include <shmState.h>
-#include <shmSync.h>
 #include <playerAI.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <semaphore.h>
+
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {

@@ -82,7 +82,6 @@ typedef struct {
     const char *help;                   /* Texto de ayuda */
 } ParamDef;
 
-
 /* Estructura que representa un proceso jugador. */
 typedef struct {
     pid_t pid;                          /* PID del proceso */

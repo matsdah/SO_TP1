@@ -2,6 +2,10 @@
 #define SHM_SYNC_H
 
 #include <structures.h>
+#include <shmCommon.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/mman.h>
 
 #define GAME_SYNC_SHM_NAME "/game_sync"
 

@@ -4,23 +4,24 @@
 static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1};
 static const int DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
-void initializeBoard(GameState *state, unsigned int seed) {
-    srand(seed);
+void initializeBoard(GameState *state, unsigned int seed){
+    /* Semilla para generación de números aleatorios. */
+    srand(seed);    
 
-    size_t totalCells = (size_t)state->width * state->height;
+    size_t totalCells = (size_t)(state->width * state->height);
 
-    for (size_t i = 0; i < totalCells; i++) {
-        state->board[i] = (rand() % 9) + 1;
+    for(size_t i = 0; i < totalCells; i++){
+        state->board[i] = ((rand() % 9) + 1);   /* Valores aleatorios entre 1 y 9 */
     }
 }
 
-void placePlayers(GameState *state) {
+void placePlayers(GameState *state){
     unsigned char i;
     unsigned short w = state->width;
     unsigned short h = state->height;
     unsigned char count = state->playerCount;
 
-    for (i = 0; i < count; i++) {
+    for(i = 0; i < count; i++){
         state->players[i].x = ((i * w) / count);
         state->players[i].y = ((i * h) / count);
         state->players[i].score = 0;
@@ -37,27 +38,30 @@ void placePlayers(GameState *state) {
     }
 }
 
-int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state) {
-    for (size_t i = 0; i < params->playerCount; i++) {
+int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
+    for(size_t i = 0; i < params->playerCount; i++){
         int pipeFds[2];
 
-        if (pipe(pipeFds) == -1) {
-            perror("pipe");
+        if(pipe(pipeFds) == -1){
+            /* Fallo la creacion del pipe, muestro mensaje de error. */
+            perror("Fallo en la creacion del pipe.");
             return -1;
         }
 
         pid_t pid = fork();
-        if (pid == -1) {
-            perror("fork");
+
+        if(pid == -1){
+            /* Fallo la creacion del proceso hijo, muestro mensaje de error. */
+            perror("Fallo en la creacion del proceso hijo.");
             return -1;
         }
 
-        if (pid == 0) {
+        if(pid == 0){
             /* Proceso hijo */
             close(pipeFds[0]);
 
-            if (dup2(pipeFds[1], STDOUT_FILENO) == -1) {
-                perror("dup2");
+            if(dup2(pipeFds[1], STDOUT_FILENO) == -1){
+                perror("Fallo en la duplicacion del descriptor de archivo.");
                 exit(1);
             }
 
@@ -70,10 +74,10 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state) {
             snprintf(heightStr, sizeof(heightStr), "%u", state->height);
 
             execl(params->players[i], params->players[i], widthStr, heightStr, NULL);
-            perror("execl player");
+            perror("Fallo en la ejecucion del jugador.");
             exit(1);
 
-        } else {
+        }else{
             /* Proceso padre */
             close(pipeFds[1]);
 
@@ -87,8 +91,9 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state) {
     return 0;
 }
 
-int validateMove(GameState *state, int playerIdx, unsigned char direction) {
-    if (direction >= 8) {
+int validateMove(GameState *state, int playerIdx, unsigned char direction){
+    if(direction >= 8){
+        /* Dirección inválida. */
         return 0;
     }
 
@@ -97,83 +102,89 @@ int validateMove(GameState *state, int playerIdx, unsigned char direction) {
     int newX = player->x + DX[direction];
     int newY = player->y + DY[direction];
 
-    if (newX < 0 || (newX >= state->width) || newY < 0 || (newY >= state->height)) {
+    if((newX < 0) || (newX >= state->width) || (newY < 0) || (newY >= state->height)){
+        /* Fuera de los límites del tablero. */
         return 0;
     }
 
     int cellValue = BOARD_AT(state->board, state->width, newY, newX);
 
-    if (cellValue < 0) {
+    if(cellValue < 0){
+        /* Celda ya ocupada por otro jugador. */
         return 0;
     }
 
     return 1;
 }
 
-void applyMove(GameState *state, int playerIdx, unsigned char direction) {
+void applyMove(GameState *state, int playerIdx, unsigned char direction){
     Player *player = &state->players[playerIdx];
     int newX = player->x + DX[direction];
     int newY = player->y + DY[direction];
 
     int *cell = &BOARD_AT(state->board, state->width, newY, newX);
 
-    player->score += *cell;
+    player->score += *cell;     /* Suma el valor de la celda al puntaje del jugador. */
 
-    *cell = -(playerIdx + 1);
+    *cell = -(playerIdx + 1);   /* Marca la celda como ocupada por el jugador. */
 
-    player->x = newX;
+    /* Actualiza la posición del jugador en el tablero. */
+    player->x = newX;           
     player->y = newY;
 }
 
-void notifyView(SyncData *sync) {
-    sem_post(&sync->printNeeded);
-    sem_wait(&sync->renderDone);
+void notifyView(SyncData *sync){
+    sem_post(&sync->printNeeded);       /* Libera el semáforo de impresión. */
+    sem_wait(&sync->renderDone);        /* Espera a que la vista termine de renderizar. */
 }
 
-void checkGameOver(GameState *state, time_t startTime, size_t timeout) {
-    if (timeout > 0 && (time(NULL) - startTime) >= (time_t)timeout) {
+void checkGameOver(GameState *state, time_t startTime, size_t timeout){
+    if((timeout > 0) && ((time(NULL) - startTime) >= (time_t)timeout)){
+        /* Tiempo de juego agotado. */
         state->gameOver = true;
         return;
     }
 
     int activeCount = 0;
 
-    for (unsigned char i = 0; i < state->playerCount; i++) {
+    /* Verifica si hay movimientos válidos para cada jugador. */
+    for(unsigned char i = 0; i < state->playerCount; i++){
         Player *player = &state->players[i];
-        int hasValidMove = 0;
+        bool hasValidMove = false;
 
-        for (unsigned char dir = 0; dir < 8; dir++) {
+        for(unsigned char dir = 0; dir < 8; dir++){
             int newX = (int)player->x + DX[dir];
             int newY = (int)player->y + DY[dir];
 
-            if ((newX >= 0) && (newX < (int)state->width) && 
-                (newY >= 0) && (newY < (int)state->height)) {
+            if((newX >= 0) && (newX < state->width) && (newY >= 0) && (newY < state->height)){
                 int cellValue = BOARD_AT(state->board, state->width, newY, newX);
 
-                if (cellValue > 0) {
-                    hasValidMove = 1;
-                    break;
+                if(cellValue > 0){
+                    /* Hay un movimiento válido. */
+                    hasValidMove = true;
+                    break;     /* Salgo del ultimo for. */
                 }
             }
         }
 
-        player->isValid = hasValidMove ? true : false;
+        player->isValid = hasValidMove;
 
-        if (hasValidMove) {
+        if(hasValidMove){
             activeCount++;
         }
     }
 
-    if (activeCount == 0) {
+    if(activeCount == 0){
+        /* No hay movimientos válidos para ninguno de los jugadores. */
         state->gameOver = true;
     }
 }
 
-void printResults(GameState *state) {
-    printf("\n=== Game Over! ===\n");
+void printResults(GameState *state){
+    printf("\n=*=*=*=*= ¡Juego Terminado! =*=*=*=*=\n");
 
-    for (unsigned char i = 0; i < state->playerCount; i++) {
-        printf("%s: %u points (valid: %u, invalid: %u)\n",
+    for(unsigned char i = 0; i < state->playerCount; i++){
+        printf("%s: %u Puntos (Válidos: %u, Inválidos: %u)\n",
                state->players[i].name,
                state->players[i].score,
                state->players[i].validMoves,
@@ -181,41 +192,44 @@ void printResults(GameState *state) {
     }
 }
 
-void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, 
-             int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid) {
+void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid){
     state->gameOver = true;
 
     /* Desbloquea a todos los jugadores para que vean gameOver */
-    for (int i = 0; i < count; i++) {
+    for(int i = 0; i < count; i++){
         sem_post(&sync->playerSem[i]);
     }
 
     /* Notifica a la vista */
-    if (viewPid > 0) {
+    if(viewPid > 0){
         notifyView(sync);
     }
 
-    printf("\n=== Child Process Exit Status ===\n");
+    printf("\n=*=*=*=*= Estado de Salida de Procesos Hijos =*=*=*=*=n");
 
-    for (int i = 0; i < count; i++) {
-        int status;
+    for(int i = 0; i < count; i++){
+        int status;     /* Variable para almacenar el estado de salida del proceso hijo. */
 
-        close(processes[i].pipeFd);
+        close(processes[i].pipeFd);     /* Cierra el descriptor de archivo del pipe. */
 
-        waitpid(processes[i].pid, &status, 0);
+        waitpid(processes[i].pid, &status, 0);      /* Espera a que el proceso hijo termine. */
 
-        if (WIFEXITED(status)) {
-            printf("Player %d (PID %d): exited with status %d\n",
-                   i + 1, processes[i].pid, WEXITSTATUS(status));
-        } else if (WIFSIGNALED(status)) {
-            printf("Player %d (PID %d): killed by signal %d\n",
-                   i + 1, processes[i].pid, WTERMSIG(status));
+        /* Imprime el estado de salida del proceso hijo. */
+        if(WIFEXITED(status)){
+            printf("Jugador N°%d (PID: %d): salió con estado %d\n", i + 1, processes[i].pid, WEXITSTATUS(status));
+        }else{
+            if(WIFSIGNALED(status)){
+                printf("Jugador N°%d (PID: %d): murió por señal %d\n", i + 1, processes[i].pid, WTERMSIG(status));
+            }
         }
     }
 
+    /* Libera los recursos de sincronización. */
     syncDestroy(sync, count);
     syncClose(syncFd, sync);
     syncUnlink();
+
+    /* Libera los recursos del estado del juego. */
     stateClose(stateFd, state, width, height);
     stateUnlink();
 }

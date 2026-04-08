@@ -2,9 +2,11 @@
 #define PARAMS_HANDLER_H
 
 #include <structures.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/* Crea una estructura Params con valores por defecto. */
-Params defaultParams(void);
+Params defaultParams();
 
 /* Parsea los argumentos de linea de comandos y llena la estructura Params. */
 int parseParams(int argc, char *argv[], Params *config);
@@ -32,5 +34,7 @@ int handleWidth(const char *value, void *context);
 
 /* Busca un parametro por su flag en el array de parametros. */
 const ParamDef *findParam(const char *arg, const ParamDef params[], int paramCount);
+
+int isFlag(const char *arg);
 
 #endif
