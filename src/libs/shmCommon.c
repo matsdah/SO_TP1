@@ -6,11 +6,13 @@ int shmCreateFd(const char *name, size_t size, mode_t mode){
 
     if(fd == -1){
 		/* Error al crear la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo crear la memoria compartida '%s'.\n", name);
         return -1;
     }
 
     if(ftruncate(fd, (off_t)size) == -1){
 		/* Error al establecer el tamaño de la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo establecer el tamaño de la memoria compartida '%s'.\n", name);
         close(fd);
         shm_unlink(name);
 
@@ -47,6 +49,7 @@ void *shmCreateAndMap(const char *name, size_t size, mode_t mode, int *fdOut, in
 
     if(fd == -1){
 		/* Error al crear la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo crear la memoria compartida '%s'.\n", name);
         return MAP_FAILED;
     }
 
@@ -55,15 +58,17 @@ void *shmCreateAndMap(const char *name, size_t size, mode_t mode, int *fdOut, in
 
     if(addr == MAP_FAILED){
 		/* Error al mapear la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo mapear la memoria compartida '%s'.\n", name);
         close(fd);
         shm_unlink(name);
 
-        return MAP_FAILED; // -1
+        return MAP_FAILED;
     }
 
     if(fdOut != NULL){
         *fdOut = fd;
     }else{
+        fprintf(stderr, "Error: no se pudo abrir la memoria compartida '%s'.\n", name);
         close(fd);
     }
 
@@ -77,6 +82,7 @@ void *shmOpenAndMap(const char *name, size_t size, int flags, int *fdOut, int pr
 
     if(fd == -1){
 		/* Error al abrir la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo abrir la memoria compartida '%s'.\n", name);
         return MAP_FAILED;
     }
 
@@ -84,6 +90,8 @@ void *shmOpenAndMap(const char *name, size_t size, int flags, int *fdOut, int pr
     void *addr = shmMapFd(fd, size, prot);
 
     if(addr == MAP_FAILED){
+        /* Error al mapear la memoria compartida. */
+        fprintf(stderr, "Error: no se pudo mapear la memoria compartida '%s'.\n", name);
         close(fd);
         return MAP_FAILED;
     }

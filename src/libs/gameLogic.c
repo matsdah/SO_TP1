@@ -181,7 +181,7 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout){
 }
 
 void printResults(GameState *state){
-    printf("\n=*=*=*=*= ¡Juego Terminado! =*=*=*=*=\n");
+    printf("\n⚪⚪⚪⚪⚪ ¡Juego Terminado! ⚪⚪⚪⚪⚪\n");
 
     for(unsigned char i = 0; i < state->playerCount; i++){
         printf("%s: %u Puntos (Válidos: %u, Inválidos: %u)\n",
@@ -205,7 +205,7 @@ void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sy
         notifyView(sync);
     }
 
-    printf("\n=*=*=*=*= Estado de Salida de Procesos Hijos =*=*=*=*=n");
+    printf("\n⚪⚪⚪⚪⚪ Estado de Salida de Procesos Hijos ⚪⚪⚪⚪⚪\n");
 
     for(int i = 0; i < count; i++){
         int status;     /* Variable para almacenar el estado de salida del proceso hijo. */

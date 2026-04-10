@@ -6,6 +6,8 @@ size_t stateGetSize(size_t width, size_t height){
 
 int stateCreate(int *shmFd, GameState **gameState, size_t width, size_t height) {
     if(!gameState || !shmFd){
+        /* Parámetros inválidos. */
+        fprintf(stderr, "Error: Parámetros inválidos en stateCreate.\n");
         return -1;
     }
 
@@ -14,6 +16,7 @@ int stateCreate(int *shmFd, GameState **gameState, size_t width, size_t height) 
 
     if(addr == MAP_FAILED){
         /* Error al crear la memoria compartida. */
+        fprintf(stderr, "Error: No se pudo crear la memoria compartida para el estado del juego.\n");
         return -1;
     }
 
@@ -25,6 +28,7 @@ int stateCreate(int *shmFd, GameState **gameState, size_t width, size_t height) 
 int stateOpen(int *shmFd, GameState **gameState, size_t width, size_t height){
     if(!gameState || !shmFd){
         /* Parámetros inválidos. */
+        fprintf(stderr, "Error: Parámetros inválidos en stateOpen.\n");
         return -1;
     }
 
@@ -33,6 +37,7 @@ int stateOpen(int *shmFd, GameState **gameState, size_t width, size_t height){
 
     if(addr == MAP_FAILED){
         /* Error al abrir la memoria compartida. */
+        fprintf(stderr, "Error: No se pudo abrir la memoria compartida para el estado del juego.\n");
         return -1;
     }
 
@@ -44,10 +49,22 @@ int stateOpen(int *shmFd, GameState **gameState, size_t width, size_t height){
 int stateClose(int shmFd, GameState *gameState, size_t width, size_t height){
     if(!gameState){
         /* Parámetros inválidos. */
+        fprintf(stderr, "Error: Parámetros inválidos en stateClose.\n");
         return -1;
     }
 
-    return ((shmUnmapFd(gameState, stateGetSize(width, height)) == -1) || ((shmCloseFd(shmFd) == -1) ? -1 : 0));
+    int unmapResult = shmUnmapFd(gameState, stateGetSize(width, height));
+    int closeResult = shmCloseFd(shmFd);
+
+    if(unmapResult == -1){
+        fprintf(stderr, "Error: No se pudo desmapear la memoria compartida del estado del juego.\n");
+    }
+
+    if(closeResult == -1){
+        fprintf(stderr, "Error: No se pudo cerrar el descriptor de memoria compartida del estado del juego.\n");
+    }
+
+    return ((unmapResult == -1 || closeResult == -1) ? -1 : 0);
 }
 
 int stateUnlink(){

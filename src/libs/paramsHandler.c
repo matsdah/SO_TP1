@@ -2,12 +2,13 @@
 
 /* Valores default seguros para los parametros. */
 Params defaultParams(){
+    
     Params p = {
         .width = 10,
         .height = 10,
         .delay = 200,
         .timeout = 10,
-        .seed = 67,
+        .seed = (int) time(NULL),
         .view = NULL,
         .players = { NULL },
         .playerCount = 0
