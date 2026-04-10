@@ -55,5 +55,6 @@ unsigned char findBestMove(GameState *state, int myIndex){
         }
     }
 
-    return ((bestDir == -1) ? 0 : (unsigned char)bestDir);     /* Si no hay movimientos válidos, devuelve 0 (Norte). */
+    return ((bestDir == -1) ? 0 : (unsigned char)
+);     /* Si no hay movimientos válidos, devuelve 0 (Norte). */
 }
