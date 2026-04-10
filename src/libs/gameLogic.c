@@ -1,5 +1,10 @@
 #include <gameLogic.h>
 
+/* 
+** gameLogic.c -> implementa la lógica del juego, incluyendo la inicialización aleatoria del tablero, 
+** spawn de jugadores, validación y aplicacion de movimientos y deteccion de fin de juego. 
+*/
+
 /* Vectores de direccion (0=UP, 1=UP_RIGHT, ..., 7=UP_LEFT) */
 static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1};
 static const int DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
@@ -192,7 +197,7 @@ void printResults(GameState *state){
     }
 }
 
-void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid){
+void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid, int interrupted){
     state->gameOver = true;
 
     /* Desbloquea a todos los jugadores para que vean gameOver */
@@ -201,7 +206,7 @@ void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sy
     }
 
     /* Notifica a la vista */
-    if(viewPid > 0){
+    if(viewPid > 0 && !interrupted){
         notifyView(sync);
     }
 

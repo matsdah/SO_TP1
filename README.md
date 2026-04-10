@@ -93,6 +93,7 @@ SO_TP1/
 ## Limpieza
 
 ```bash
+rm -f /dev/shm/game_state /dev/shm/game_sync /dev/shm/sem.*
 make clean
 ```
 

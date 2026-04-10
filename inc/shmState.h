@@ -6,13 +6,14 @@
 #include <shmCommon.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <stdio.h>
 
 #define GAME_STATE_SHM_NAME "/game_state"
 
-/* Calcula el tamano total de la memoria compartida del estado. */
+/* Calcula el tamaño total de la memoria compartida del estado. */
 size_t stateGetSize(size_t width, size_t height);
 
-/* Crea y mapea la memoria compartida del estado del juego (solo master). */
+/* Crea y mapea la memoria compartida del estado del juego (master). */
 int stateCreate(int *shmFd, GameState **gameState, size_t width, size_t height);
 
 /* Abre y mapea la memoria compartida del estado existente (vista/jugador). */

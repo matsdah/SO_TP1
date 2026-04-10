@@ -6,8 +6,9 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
-/* Crea un objeto de memoria compartida con el nombre y tamano especificado. */
+/* Crea un objeto de memoria compartida con el nombre y tamaño especificado. */
 int shmCreateFd(const char *name, size_t size, mode_t mode);
 
 /* Abre un objeto de memoria compartida existente. */

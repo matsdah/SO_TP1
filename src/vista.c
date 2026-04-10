@@ -1,5 +1,11 @@
 #include <viewRender.h>
 
+/* 
+** vista.c -> Renderizar el estado del juego en la terminal, espera notificaciones del master 
+** para actualizar la vista, toma escritura exclusiva para mostrar el tablero y las estadisticas 
+** de cada jugador. Al final muestra el tablero final y las estadisticas finales.
+*/
+
 int main(int argc, char *argv[]){
     if(argc < 3){
         /* Muestro mensaje de error por parametros incorrectos. */

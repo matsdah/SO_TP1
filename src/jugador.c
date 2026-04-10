@@ -1,9 +1,9 @@
 #include <playerAI.h>
 
-
-int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <width> <height>\n", argv[0]);
+int main(int argc, char *argv[]){
+    if(argc < 3){
+        /* Muestro mensaje de error por parametros incorrectos. */
+        fprintf(stderr, "Uso minimo de los parámetros: %s <width> <height>\n", argv[0]);
         return 1;
     }
 
@@ -17,12 +17,12 @@ int main(int argc, char *argv[]) {
     GameState *state = NULL;
 
     if (syncOpen(&syncFd, &sync) == -1) {
-        perror("syncOpen");
+        perror("Error en syncOpen");
         return 1;
     }
 
     if (stateOpen(&stateFd, &state, width, height) == -1) {
-        perror("stateOpen");
+        perror("Error en stateOpen");
         syncClose(syncFd, sync);
         return 1;
     }
@@ -31,17 +31,17 @@ int main(int argc, char *argv[]) {
     int myIndex = findMyIndex(state);
 
     if (myIndex == -1) {
-        fprintf(stderr, "Error: Player not found in game state\n");
+        fprintf(stderr, "Error: Jugador no encontrado en el estado del juego.\n");
         stateClose(stateFd, state, width, height);
         syncClose(syncFd, sync);
         return 1;
     }
 
     /* Loop principal del jugador */
-    while (1) {
+    while(1){ 
         acquireReadLock(sync);
 
-        if (state->gameOver) {
+        if(state->gameOver){
             releaseReadLock(sync);
             break;
         }

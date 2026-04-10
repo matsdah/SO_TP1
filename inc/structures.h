@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-/* Dimension maxima del nombre de un jugador. */
+/* Dimensión máxima del nombre de un jugador. */
 #define NAME_DIM 16
 
 /* Numero maximo de jugadores. */
@@ -23,50 +23,50 @@
 
 /* Estructura que representa a un jugador. */
 typedef struct {
-    char name[NAME_DIM];                /* Nombre del jugador */
-    unsigned int score;                 /* Puntaje acumulado */
-    unsigned int validMoves;            /* Cantidad de movimientos validos */
-    unsigned int invalidMoves;          /* Cantidad de movimientos invalidos */
-    unsigned short x;                   /* Posicion X en el tablero */
-    unsigned short y;                   /* Posicion Y en el tablero */
-    pid_t pid;                          /* PID del proceso del jugador */
-    bool isValid;                       /* true si el jugador tiene movimientos validos */
+    char name[NAME_DIM];                /* Nombre del jugador. */
+    unsigned int score;                 /* Puntaje acumulado. */
+    unsigned int validMoves;            /* Cantidad de movimientos válidos. */
+    unsigned int invalidMoves;          /* Cantidad de movimientos inválidos. */
+    unsigned short x;                   /* Posición X en el tablero. */
+    unsigned short y;                   /* Posición Y en el tablero. */
+    pid_t pid;                          /* PID del proceso del jugador. */
+    bool isValid;                       /* true si el jugador tiene movimientos válidos. */
 } Player;
 
 
 /* Estructura que representa el estado del juego. */
 typedef struct {
-    unsigned short width;               /* Ancho del tablero */
-    unsigned short height;              /* Alto del tablero */
-    unsigned char playerCount;          /* Cantidad de jugadores en el juego */
-    Player players[CANT_PLAYERS];       /* Informacion de los jugadores */
-    bool gameOver;                      /* true si el juego ha terminado */
+    unsigned short width;               /* Ancho del tablero. */
+    unsigned short height;              /* Alto del tablero. */
+    unsigned char playerCount;          /* Cantidad de jugadores en el juego. */
+    Player players[CANT_PLAYERS];       /* Información de los jugadores. */
+    bool gameOver;                      /* true si el juego ha terminado. */
     int board[];                        /* Tablero flexible: fila-0, fila-1, ..., fila-n-1 */
 } GameState;
 
 
 /* Estructura que contiene los semaforos de sincronizacion. */
 typedef struct {
-    sem_t printNeeded;                  /* Indica a la vista que hay cambios por imprimir */
-    sem_t renderDone;                   /* Indica al master que la vista termino de imprimir */
-    sem_t masterMutex;                  /* Mutex para prioridad del master */
-    sem_t stateMutex;                   /* Mutex para acceso exclusivo al estado */
-    sem_t readCountMutex;               /* Mutex para el contador de lectores */
-    unsigned int readersCount;          /* Cantidad de procesos leyendo el estado */
+    sem_t printNeeded;                  /* Indica a la vista que hay cambios por imprimir. */
+    sem_t renderDone;                   /* Indica al master que la vista terminó de imprimir. */
+    sem_t masterMutex;                  /* Mutex para prioridad del master. */
+    sem_t stateMutex;                   /* Mutex para acceso exclusivo al estado. */
+    sem_t readCountMutex;               /* Mutex para el contador de lectores. */
+    unsigned int readersCount;          /* Cantidad de procesos leyendo el estado. */
     sem_t playerSem[CANT_PLAYERS];      /* Semaforo por jugador para enviar movimiento */
 } SyncData;
 
 
 /* Estructura con los parametros de configuracion del juego. */
 typedef struct {
-    size_t width;                       /* Ancho del tablero */
-    size_t height;                      /* Alto del tablero */
-    size_t delay;                       /* Retraso en milisegundos */
-    size_t timeout;                     /* Timeout en segundos */
-    size_t seed;                        /* Semilla para generacion aleatoria */
-    char *view;                         /* Ruta del binario de la vista */
-    char *players[CANT_PLAYERS];        /* Rutas de los binarios de los jugadores */
-    size_t playerCount;                 /* Cantidad de jugadores */
+    size_t width;                       /* Ancho del tablero. */
+    size_t height;                      /* Alto del tablero. */
+    size_t delay;                       /* Retraso en milisegundos- */
+    size_t timeout;                     /* Timeout en segundos. */
+    size_t seed;                        /* Semilla para generación aleatoria. */
+    char *view;                         /* Ruta del binario de la vista. */
+    char *players[CANT_PLAYERS];        /* Rutas de los binarios de los jugadores. */
+    size_t playerCount;                 /* Cantidad de jugadores. */
 } Params;
 
 
@@ -78,9 +78,10 @@ typedef int (*ParamHandler)(const char *value, void *context);
 typedef struct {
     const char *flag;                   /* Flag del parametro (ej: "-w") */
     int expectsValue;                   /* 1 si espera un valor, 0 si no */
-    ParamHandler handler;               /* Funcion manejadora */
-    const char *help;                   /* Texto de ayuda */
+    ParamHandler handler;               /* Función manejadora. */
+    const char *help;                   /* Texto de ayuda. */
 } ParamDef;
+
 
 /* Estructura que representa un proceso jugador. */
 typedef struct {

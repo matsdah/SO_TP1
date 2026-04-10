@@ -1,5 +1,10 @@
 #include <shmSync.h>
 
+/* 
+** shmSync.c -> crea/abre/cierra SHM de sync, inicializa/destroza semáforos y 
+** maneja exclusividad de lectura. 
+*/
+
 int syncCreate(int *shmFd, SyncData **gameSync){
     if(!gameSync || !shmFd){
         /* Parámetros inválidos. */

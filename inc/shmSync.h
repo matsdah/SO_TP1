@@ -6,20 +6,21 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <stdio.h>
 
 #define GAME_SYNC_SHM_NAME "/game_sync"
 
-/* Crea y mapea la memoria compartida de sincronizacion (solo master). */
+/* Crea y mapea la memoria compartida de sincronizacion (master). */
 int syncCreate(int *shmFd, SyncData **gameSync);
 
-/* Inicializa los semaforos y contadores de sincronizacion (solo master). */
+/* Inicializa los semaforos y contadores de sincronizacion (master). */
 int syncInit(SyncData *gameSync, unsigned int playerCount);
 
-/* Destruye los semaforos de sincronizacion (solo master). */
+/* Destruye los semaforos de sincronizacion (master). */
 int syncDestroy(SyncData *gameSync, unsigned int playerCount);
 
 /* Elimina el objeto de memoria compartida de sincronizacion. */
-int syncUnlink(void);
+int syncUnlink();
 
 /* Abre y mapea la memoria compartida de sincronizacion (vista/jugador). */
 int syncOpen(int *shmFd, SyncData **gameSync);
@@ -27,10 +28,10 @@ int syncOpen(int *shmFd, SyncData **gameSync);
 /* Cierra el mapping y el file descriptor de sincronizacion. */
 int syncClose(int shmFd, SyncData *gameSync);
 
-/* Adquiere el lock de lectura (patron readers-writers). */
+/* Adquiere lectura exclusiva. */
 void acquireReadLock(SyncData *sync);
 
-/* Libera el lock de lectura (patron readers-writers). */
+/* Libera lectura exclusiva. */
 void releaseReadLock(SyncData *sync);
 
 #endif

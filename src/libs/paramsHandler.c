@@ -1,5 +1,9 @@
 #include <paramsHandler.h>
 
+/*
+** paramsHandler.c -> parser de argumentos con tabla de parámetros y manejo especial de -p múltiple.
+*/
+
 /* Valores default seguros para los parametros. */
 Params defaultParams(){
     

@@ -3,6 +3,10 @@
 #include <unistd.h>
 #include <semaphore.h>
 
+/*
+** playerAI.c -> estrategia greedy (elige celda adyacente de mayor valor) y detección de índice por PID. 
+*/
+
 /* Direcciones: 
 ** 0 = Norte
 ** 1 = Noreste
@@ -55,6 +59,5 @@ unsigned char findBestMove(GameState *state, int myIndex){
         }
     }
 
-    return ((bestDir == -1) ? 0 : (unsigned char)
-);     /* Si no hay movimientos válidos, devuelve 0 (Norte). */
+    return ((bestDir == -1) ? 0 : bestDir); /* Si no hay movimientos válidos, devuelve 0 (Norte). */
 }

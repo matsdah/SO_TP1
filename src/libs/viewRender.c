@@ -1,5 +1,9 @@
 #include <viewRender.h>
 
+/* 
+** viewRender.c -> render del tablero y estadísticas con colores/símbolos. 
+*/
+
 static const char *K_THEME_BASE = "\033[0m\033[48;5;236m\033[38;5;252m";
 static const char *K_RESET = "\033[0m";
 

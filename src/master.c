@@ -1,42 +1,48 @@
 #include <gameLogic.h>
 
+/* 
+** master.c -> parsea argumentos, crea memoria compartida, inicializa semáforos, 
+** spawnea jugadores-vista, ejecuta el loop principal del juego, y hace cleanup al finalizar.
+*/
+
 /* Variables globales para el signal handler */
-static volatile sig_atomic_t gInterrupted = 0;
-static PlayerProcess *gPlayerProcesses = NULL;
-static int gPlayerCount = 0;
-static GameState *gGameState = NULL;
-static SyncData *gGameSync = NULL;
-static int gStateFd = -1;
-static int gSyncFd = -1;
-static size_t gWidth = 0;
-static size_t gHeight = 0;
-static pid_t gViewPid = -1;
+static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
+static PlayerProcess *gPlayerProcesses = NULL;  /* Arreglo de procesos de jugadores. */
+static int gPlayerCount = 0;                    /* Cantidad de jugadores. */
+static GameState *gGameState = NULL;            /* Estado del juego. */
+static SyncData *gGameSync = NULL;              /* Datos de sincronización. */
+static int gStateFd = -1;                       /* File descriptor de la memoria compartida del estado. */
+static int gSyncFd = -1;                        /* File descriptor de la memoria compartida de sincronización. */
+static size_t gWidth = 0;                       /* Ancho del tablero. */
+static size_t gHeight = 0;                      /* Alto del tablero. */
+static pid_t gViewPid = -1;                     /* PID del proceso de la vista. */
 
-static void signalHandler(int signum) {
-    (void)signum;
-    gInterrupted = 1;
+static void signalHandler(){
+    gInterrupted = 1;       /* Indica que se recibió una señal de interrupción. */
 
-    if (gGameState != NULL) {
-        gGameState->gameOver = 1;
+    if(gGameState != NULL){
+        gGameState->gameOver = true;
     }
 }
 
-int main(int argc, char *argv[]) {
-    Params params = defaultParams();
+int main(int argc, char *argv[]){
+    /* Asigno parámetros por defecto por si no recibo parametros luego. */
+    Params params = defaultParams();        
 
-    if (!parseParams(argc, argv, &params)) {
+    /* Parseo parametros (si aplica). */
+    if(!parseParams(argc, argv, &params)){
         fprintf(stderr, "Uso minimo: %s -p <player_path> [-v <view_path>] [-w <width>] [-h <height>]\n", argv[0]);
         return 1;
     }
 
-    /* Configurar manejador de senales */
-    struct sigaction sa;
-    sa.sa_handler = signalHandler;
-    sigemptyset(&sa.sa_mask);
+    struct sigaction sa;            /* Crear manejador de señales. */      
+    sa.sa_handler = signalHandler;  
+    sigemptyset(&sa.sa_mask);       /* Inicializar conjunto de señales. */
     sa.sa_flags = 0;
 
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
-        perror("sigaction");
+    if(sigaction(SIGINT, &sa, NULL) == -1){
+        /* Manejar error de sigaction por flags mal usados, errores de inicilización, etc. */
+        perror("Error de sigaction.");
         return 1;
     }
 
@@ -46,20 +52,20 @@ int main(int argc, char *argv[]) {
     GameState *gameState = NULL;
     SyncData *gameSync = NULL;
 
-    if (stateCreate(&stateFd, &gameState, params.width, params.height) == -1) {
-        perror("stateCreate");
+    if(stateCreate(&stateFd, &gameState, params.width, params.height) == -1){
+        perror("Error en stateCreate.");
         return 1;
     }
 
-    if (syncCreate(&syncFd, &gameSync) == -1) {
-        perror("syncCreate");
+    if(syncCreate(&syncFd, &gameSync) == -1){
+        perror("Error en syncCreate.");
         stateClose(stateFd, gameState, params.width, params.height);
         stateUnlink();
         return 1;
     }
 
-    if (syncInit(gameSync, (unsigned int)params.playerCount) == -1) {
-        perror("syncInit");
+    if(syncInit(gameSync, params.playerCount) == -1){
+        perror("Error en syncInit.");
         syncClose(syncFd, gameSync);
         syncUnlink();
         stateClose(stateFd, gameState, params.width, params.height);
@@ -79,20 +85,20 @@ int main(int argc, char *argv[]) {
     /* Crear procesos de jugadores */
     PlayerProcess playerProcesses[CANT_PLAYERS];
 
-    if (spawnPlayers(&params, playerProcesses, gameState) == -1) {
-        cleanup(playerProcesses, params.playerCount, gameState, gameSync, 
-                stateFd, syncFd, params.width, params.height, -1);
+    if(spawnPlayers(&params, playerProcesses, gameState) == -1){
+        cleanup(playerProcesses, params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1, 0);
         return 1;
     }
 
     /* Crear proceso de visualizacion */
     pid_t viewPid = -1;
 
-    if (params.view != NULL) {
+    if(params.view != NULL){
         viewPid = fork();
 
-        if (viewPid == 0) {
-            char widthStr[16];
+        if(viewPid == 0){
+            /* Strings para almacenar el ancho y alto del tablero. */
+            char widthStr[16];      
             char heightStr[16];
 
             snprintf(widthStr, sizeof(widthStr), "%zu", params.width);
@@ -102,13 +108,15 @@ int main(int argc, char *argv[]) {
             perror("execl view");
             exit(1);
 
-        } else if (viewPid < 0) {
-            perror("fork view");
+        }else{
+            if(viewPid < 0){
+                perror("Error en la vista de fork.");
+            }
         }
     }
 
     /* Configurar variables globales para signal handler */
-    gPlayerProcesses = playerProcesses;
+    gPlayerProcesses = playerProcesses;     
     gPlayerCount = params.playerCount;
     gGameState = gameState;
     gGameSync = gameSync;
@@ -119,20 +127,20 @@ int main(int argc, char *argv[]) {
     gViewPid = viewPid;
 
     /* Notificar estado inicial a la vista */
-    if (viewPid > 0) {
+    if(viewPid > 0){
         notifyView(gameSync);
     }
 
     /* Loop principal */
     time_t startTime = time(NULL);
     int currentPlayer = 0;
-    fd_set readFds;
-    struct timeval tv;
+    fd_set readFds;             /* Conjunto de descriptores de archivo. */
+    struct timeval tv;          /* Estructura para el timeout. */
 
-    while (!gameState->gameOver && !gInterrupted) {
+    while(!gameState->gameOver && !gInterrupted){
+        /* En cada iteracion, chequeo si el juego finalizó. */
         checkGameOver(gameState, startTime, params.timeout);
-
-        if (gameState->gameOver) {
+        if(gameState->gameOver){
             break;
         }
 
@@ -145,62 +153,69 @@ int main(int argc, char *argv[]) {
 
         int ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
 
-        if (ret > 0 && FD_ISSET(playerProcesses[currentPlayer].pipeFd, &readFds)) {
-            unsigned char direction;
+        if((ret > 0) && FD_ISSET(playerProcesses[currentPlayer].pipeFd, &readFds)){
+            unsigned char direction;        /* Dirección recibida del jugador. */
+
+            /* Leer dirección del jugador. */
             ssize_t bytesRead = read(playerProcesses[currentPlayer].pipeFd, &direction, 1);
 
-            if (bytesRead == 1) {
-                /* Adquirir writer lock */
+            if(bytesRead == 1){
+                /* Adquirir escritura exclusiva. */
                 sem_wait(&gameSync->masterMutex);
                 sem_wait(&gameSync->stateMutex);
 
                 /* Validar y aplicar movimiento */
-                if (validateMove(gameState, currentPlayer, direction)) {
+                if(validateMove(gameState, currentPlayer, direction)){
                     applyMove(gameState, currentPlayer, direction);
                     gameState->players[currentPlayer].validMoves++;
-                    startTime = time(NULL);
-                } else {
+                    startTime = time(NULL);     /* Actualizar el tiempo de inicio. */
+                }else{
                     gameState->players[currentPlayer].invalidMoves++;
                 }
 
-                /* Liberar writer lock */
+                /* Liberar escritura exclusiva. */
                 sem_post(&gameSync->stateMutex);
                 sem_post(&gameSync->masterMutex);
 
-                /* Notificar vista */
-                if (viewPid > 0) {
+                /* Notificar vista. */
+                if(viewPid > 0){
                     notifyView(gameSync);
                 }
 
-                /* Enviar ACK al jugador */
+                /* Desbloqueo al jugador actual si estaba esperando permiso. 
+                ** Evito que el jugador siga ejecutándose antes de que el master 
+                ** termine de procesar su movimiento. */
                 sem_post(&gameSync->playerSem[currentPlayer]);
             }
         }
 
-        currentPlayer = (currentPlayer + 1) % (int)params.playerCount;
+        /* Avanzo al siguiente jugador de forma ciruclar. */
+        currentPlayer = (currentPlayer + 1) % params.playerCount;
+
+        /* Agregamos un pequeño delay para que las interaciones sean visibles. */
         usleep(params.delay * 1000);
     }
 
-    if (gInterrupted) {
-        fprintf(stderr, "\n\nInterrupted by signal, cleaning up...\n");
-    } else {
+    if(gInterrupted){
+        fprintf(stderr, "\n\nInterrumpido por señal, borrando...\n");   /* por ej.: CTRL + C*/
+    }else{
         printResults(gameState);
     }
 
-    cleanup(playerProcesses, (int)params.playerCount, gameState, gameSync, 
-            stateFd, syncFd, params.width, params.height, viewPid);
+    cleanup(playerProcesses, (int)params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, viewPid, gInterrupted);
 
     /* Esperar a que termine la vista */
-    if (viewPid > 0) {
+    if(viewPid > 0){
         int viewStatus;
+
         waitpid(viewPid, &viewStatus, 0);
 
-        if (WIFEXITED(viewStatus)) {
-            printf("View (PID %d): exited with status %d\n",
-                   viewPid, WEXITSTATUS(viewStatus));
-        } else if (WIFSIGNALED(viewStatus)) {
-            printf("View (PID %d): killed by signal %d\n",
-                   viewPid, WTERMSIG(viewStatus));
+        if(WIFEXITED(viewStatus)){
+            printf("Vista (PID: %d): salió con estado: %d\n", viewPid, WEXITSTATUS(viewStatus));
+        }else{
+            if(WIFSIGNALED(viewStatus)){
+                printf("Vista (PID: %d): abortado por señal: %d\n", viewPid, WTERMSIG(viewStatus));
+            }
         }
     }
 

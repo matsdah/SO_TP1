@@ -40,7 +40,6 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout);
 void printResults(GameState *state);
 
 /* Limpia todos los recursos: procesos, memoria compartida y semaforos. */
-void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, 
-             int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid);
+void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid, int interrupted);
 
 #endif
