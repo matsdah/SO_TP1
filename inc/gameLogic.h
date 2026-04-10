@@ -3,17 +3,6 @@
 
 #include <structures.h>
 #include <time.h>
-#include <shmState.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <semaphore.h>
-#include <shmSync.h>
-#include <sys/select.h>
-#include <signal.h>
-#include <paramsHandler.h>
 
 /* Inicializa el tablero con valores aleatorios entre 1 y 9. */
 void initializeBoard(GameState *state, unsigned int seed);

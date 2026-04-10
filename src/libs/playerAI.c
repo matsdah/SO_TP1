@@ -1,7 +1,5 @@
 #include <playerAI.h>
-#include <shmSync.h>
 #include <unistd.h>
-#include <semaphore.h>
 
 /*
 ** playerAI.c -> estrategia greedy (elige celda adyacente de mayor valor) y detección de índice por PID. 

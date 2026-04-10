@@ -6,15 +6,6 @@ SRCDIR = src
 OBJDIR = obj
 BINDIR = bin
 
-LIB_SOURCES = \
-	$(SRCDIR)/libs/paramsHandler.c \
-	$(SRCDIR)/libs/shmCommon.c \
-	$(SRCDIR)/libs/shmState.c \
-	$(SRCDIR)/libs/shmSync.c \
-	$(SRCDIR)/libs/gameLogic.c \
-	$(SRCDIR)/libs/playerAI.c \
-	$(SRCDIR)/libs/viewRender.c
-
 MASTER_SOURCES = \
 	$(SRCDIR)/master.c \
 	$(SRCDIR)/libs/paramsHandler.c \

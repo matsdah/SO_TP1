@@ -1,4 +1,9 @@
 #include <viewRender.h>
+#include <shmState.h>
+#include <shmSync.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
 
 /* 
 ** vista.c -> Renderizar el estado del juego en la terminal, espera notificaciones del master 

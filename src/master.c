@@ -1,4 +1,15 @@
 #include <gameLogic.h>
+#include <paramsHandler.h>
+#include <shmState.h>
+#include <shmSync.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <semaphore.h>
+#include <signal.h>
 
 /* 
 ** master.c -> parsea argumentos, crea memoria compartida, inicializa semáforos, 
@@ -7,15 +18,7 @@
 
 /* Variables globales para el signal handler */
 static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
-static PlayerProcess *gPlayerProcesses = NULL;  /* Arreglo de procesos de jugadores. */
-static int gPlayerCount = 0;                    /* Cantidad de jugadores. */
 static GameState *gGameState = NULL;            /* Estado del juego. */
-static SyncData *gGameSync = NULL;              /* Datos de sincronización. */
-static int gStateFd = -1;                       /* File descriptor de la memoria compartida del estado. */
-static int gSyncFd = -1;                        /* File descriptor de la memoria compartida de sincronización. */
-static size_t gWidth = 0;                       /* Ancho del tablero. */
-static size_t gHeight = 0;                      /* Alto del tablero. */
-static pid_t gViewPid = -1;                     /* PID del proceso de la vista. */
 
 static void signalHandler(){
     gInterrupted = 1;       /* Indica que se recibió una señal de interrupción. */
@@ -116,15 +119,7 @@ int main(int argc, char *argv[]){
     }
 
     /* Configurar variables globales para signal handler */
-    gPlayerProcesses = playerProcesses;     
-    gPlayerCount = params.playerCount;
     gGameState = gameState;
-    gGameSync = gameSync;
-    gStateFd = stateFd;
-    gSyncFd = syncFd;
-    gWidth = params.width;
-    gHeight = params.height;
-    gViewPid = viewPid;
 
     /* Notificar estado inicial a la vista */
     if(viewPid > 0){

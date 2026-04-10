@@ -2,14 +2,6 @@
 #define VIEW_RENDER_H
 
 #include <structures.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <semaphore.h>
-#include <shmState.h>
-#include <shmSync.h>
-#include <unistd.h>
-#include <string.h>
 
 /* Renderiza el tablero completo con colores por jugador. */
 void printView(const GameState *gameState);

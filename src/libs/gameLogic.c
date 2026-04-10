@@ -1,4 +1,11 @@
 #include <gameLogic.h>
+#include <shmState.h>
+#include <shmSync.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <semaphore.h>
 
 /* 
 ** gameLogic.c -> implementa la lógica del juego, incluyendo la inicialización aleatoria del tablero, 

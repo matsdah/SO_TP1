@@ -2,10 +2,6 @@
 #define PARAMS_HANDLER_H
 
 #include <structures.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h> 
 
 Params defaultParams();
 
@@ -35,7 +31,5 @@ int handleWidth(const char *value, void *context);
 
 /* Busca un parametro por su flag en el array de parametros. */
 const ParamDef *findParam(const char *arg, const ParamDef params[], int paramCount);
-
-int isFlag(const char *arg);
 
 #endif

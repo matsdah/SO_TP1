@@ -1,4 +1,9 @@
 #include <shmSync.h>
+#include <shmCommon.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <stdio.h>
 
 /* 
 ** shmSync.c -> crea/abre/cierra SHM de sync, inicializa/destroza semáforos y 

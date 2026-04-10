@@ -1,4 +1,7 @@
 #include <viewRender.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
 
 /* 
 ** viewRender.c -> render del tablero y estadísticas con colores/símbolos. 

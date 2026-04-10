@@ -1,6 +1,12 @@
 #include <shmState.h>
+#include <shmCommon.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <stdio.h>
 
-/* shmState.c -> crea/abre/cierra/destruye SHM del estado y calcula su tamaño total. */
+/* 
+** shmState.c -> crea/abre/cierra/destruye SHM del estado y calcula su tamaño total. 
+*/
 
 size_t stateGetSize(size_t width, size_t height){
     return (sizeof(GameState) + (sizeof(int) * (width * height)));

@@ -11,12 +11,6 @@
 /* Numero maximo de jugadores. */
 #define CANT_PLAYERS 9
 
-/* Macro para calcular el tamano del estado del juego. */
-#define GAME_STATUS_SIZE(GameState, width, height) (sizeof(GameState) + (sizeof(int) * (width * height)))
-
-/* Macro para verificar si una posicion es la cabeza de un jugador. */
-#define IS_HEAD(x, y, j, i) ((x) == (j) && (y) == (i))
-
 /* Macro para acceder a una posicion del tablero. */
 #define BOARD_AT(board, w, i, j) ((board)[((i) * (w)) + (j)])
 
@@ -79,7 +73,6 @@ typedef struct {
     const char *flag;                   /* Flag del parametro (ej: "-w") */
     int expectsValue;                   /* 1 si espera un valor, 0 si no */
     ParamHandler handler;               /* Función manejadora. */
-    const char *help;                   /* Texto de ayuda. */
 } ParamDef;
 
 

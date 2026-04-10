@@ -1,4 +1,8 @@
 #include <paramsHandler.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 /*
 ** paramsHandler.c -> parser de argumentos con tabla de parámetros y manejo especial de -p múltiple.
@@ -21,14 +25,18 @@ Params defaultParams(){
 }
 
 static ParamDef gParameters[] = {
-    {"-w", 1, handleWidth,   "Set width  (example: -w 20)"},
-    {"-h", 1, handleHeight,  "Set height (example: -h 10)"},
-    {"-d", 1, handleDelay,   "Set delay (example: -d 100)"},
-    {"-t", 1, handleTimeout, "Set timeout (example: -t 15)"},
-    {"-s", 1, handleSeed,    "Set seed (example: -s 67)"},
-    {"-v", 1, handleView,    "Set view path (example: -v ./vista)"},
-    {"-p", 1, handlePlayers, "Set players path (example: -p ./player ./bin/player2)"},
+    {"-w", 1, handleWidth},
+    {"-h", 1, handleHeight},
+    {"-d", 1, handleDelay},
+    {"-t", 1, handleTimeout},
+    {"-s", 1, handleSeed},
+    {"-v", 1, handleView},
+    {"-p", 1, handlePlayers},
 };
+
+static int isFlag(const char *arg){
+    return ((arg != NULL) && (arg[0] == '-') && (arg[1] != '\0'));
+}
 
 const ParamDef *findParam(const char *arg, const ParamDef params[], int paramCount){
 
@@ -186,8 +194,4 @@ int handlePlayers(const char *value, void *context){
     cfg->playerCount++;
 
     return 1;
-}
-
-int isFlag(const char *arg){
-    return ((arg != NULL) && (arg[0] == '-') && (arg[1] != '\0'));
 }
