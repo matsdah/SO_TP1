@@ -8,6 +8,7 @@
 #include <shmSync.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdio.h>
 
 /* Busca el indice del jugador actual comparando PIDs. */
 int findMyIndex(const GameState *state);
