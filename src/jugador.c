@@ -6,15 +6,19 @@
 #include <unistd.h>
 #include <semaphore.h>
 
-int main(int argc, char *argv[]){
-    if(argc < 3){
-        /* Muestro mensaje de error por parametros incorrectos. */
-        fprintf(stderr, "Uso minimo de los parámetros: %s <width> <height>\n", argv[0]);
+
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <width> <height>\n", argv[0]);
         return 1;
     }
+    
+    size_t width, height;
+    int checkResult = checkArguments(argv, &width, &height);
 
-    size_t width = atoi(argv[1]);
-    size_t height = atoi(argv[2]);
+    if (checkResult == -1) {
+        return 1;
+    }
 
     int syncFd = -1;
     int stateFd = -1;
@@ -43,29 +47,7 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-    /* Loop principal del jugador */
-    while(1){ 
-        acquireReadLock(sync);
-
-        if(state->gameOver){
-            releaseReadLock(sync);
-            break;
-        }
-
-        unsigned char move = findBestMove(state, myIndex);
-
-        releaseReadLock(sync);
-
-        if (write(STDOUT_FILENO, &move, 1) != 1) {
-            break;
-        }
-
-        sem_wait(&sync->playerSem[myIndex]);
-
-        if (state->gameOver) {
-            break;
-        }
-    }
+    runLoop(state, sync, myIndex);
 
     syncClose(syncFd, sync);
     stateClose(stateFd, state, width, height);
