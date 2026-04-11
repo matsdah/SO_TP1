@@ -4,13 +4,7 @@
 #include <shmSync.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <semaphore.h>
 #include <signal.h>
-#include <errno.h>
 
 /* 
 ** master.c -> parsea argumentos, crea memoria compartida, inicializa semáforos, 
@@ -19,21 +13,6 @@
 
 /* Variables globales para el signal handler */
 static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
-
-static int semWaitWithInterrupt(sem_t *sem){
-    while(sem_wait(sem) == -1){
-        if(errno == EINTR){
-            if(gInterrupted){
-                return 1;
-            }
-            continue;
-        }
-
-        return -1;
-    }
-
-    return 0;
-}
 
 static void signalHandler(int sig){
     (void)sig;
@@ -58,84 +37,37 @@ int main(int argc, char *argv[]){
     if(sigaction(SIGINT, &sa, NULL) == -1){
         /* Manejar error de sigaction por flags mal usados, errores de inicilización, etc. */
         perror("Error de sigaction.");
+        freeParams(&params);
         return 1;
     }
 
-    /* Crear memoria compartida y semaforos */
     int stateFd = -1;
     int syncFd = -1;
     GameState *gameState = NULL;
     SyncData *gameSync = NULL;
 
-    if(stateCreate(&stateFd, &gameState, params.width, params.height) == -1){
-        perror("Error en stateCreate.");
+    if(setupGameResources(&params, &stateFd, &gameState, &syncFd, &gameSync) == -1){
+        freeParams(&params);
         return 1;
     }
 
-    if(syncCreate(&syncFd, &gameSync) == -1){
-        perror("Error en syncCreate.");
-        stateClose(stateFd, gameState, params.width, params.height);
-        stateUnlink();
-        return 1;
-    }
+    setupInitialGameState(gameState, &params);
 
-    if(syncInit(gameSync, params.playerCount) == -1){
-        perror("Error en syncInit.");
-        syncClose(syncFd, gameSync);
-        syncUnlink();
-        stateClose(stateFd, gameState, params.width, params.height);
-        stateUnlink();
-        return 1;
-    }
-
-    /* Inicializar estado del juego */
-    gameState->width = params.width;
-    gameState->height = params.height;
-    gameState->playerCount = params.playerCount;
-    gameState->gameOver = false;
-
-    initializeBoard(gameState, params.seed);
-    placePlayers(gameState);
-
-    /* Crear procesos de jugadores */
     PlayerProcess playerProcesses[CANT_PLAYERS];
-
-    for(int i = 0; i < gameState->playerCount; i++){
-        playerProcesses[i].pid = -1;
-        playerProcesses[i].pipeFd = -1;
-    }
+    initPlayerProcesses(playerProcesses, (int)gameState->playerCount);
     
     if(spawnPlayers(&params, playerProcesses, gameState) == -1){
         cleanup(playerProcesses, params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1, 0);
+        freeParams(&params);
         return 1;
     }
 
-    /* Crear proceso de visualizacion */
     pid_t viewPid = -1;
     int viewReady = 0;
-
-    if(params.view != NULL){
-        viewPid = fork();
-
-        if(viewPid == 0){
-            /* Strings para almacenar el ancho y alto del tablero. */
-            char widthStr[16];      
-            char heightStr[16];
-
-            snprintf(widthStr, sizeof(widthStr), "%hu", params.width);
-            snprintf(heightStr, sizeof(heightStr), "%hu", params.height);
-
-            execl(params.view, params.view, widthStr, heightStr, NULL);
-            perror("execl view");
-            exit(1);
-
-        }else{
-            if(viewPid < 0){
-                perror("Error en la vista de fork.");
-            }else{
-                viewReady = 1;
-            }
-        }
+    if(spawnViewProcess(&params, &viewPid, &viewReady) == -1){
+        cleanup(playerProcesses, params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1, 0);
+        freeParams(&params);
+        return 1;
     }
 
     /* Notificar estado inicial a la vista */
@@ -145,113 +77,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    /* Loop principal */
-    time_t startTime = time(NULL);
-    int currentPlayer = 0;
-    fd_set readFds;             /* Conjunto de descriptores de archivo. */
-    struct timeval tv;          /* Estructura para el timeout. */
-
-    while(!gameState->gameOver && !gInterrupted){
-        /* En cada iteracion, chequeo si el juego finalizó. */
-        checkGameOver(gameState, startTime, params.timeout);
-        
-        if(gInterrupted){
-            gameState ->gameOver = true;    /* Si se recibió una señal de interrupción, marco el juego como terminado. */
-        }
-        if(gameState->gameOver){
-            break;
-        }
-
-        /* Round-robin: leer del jugador actual */
-        FD_ZERO(&readFds);
-        FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
-
-        
-        int ret;
-        do{
-            tv.tv_sec = 0;
-            tv.tv_usec = params.delay * 1000;
-            ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
-        }while((ret == -1) && (errno == EINTR) && !gInterrupted);
-
-        if(ret == -1){
-            perror("Error en select");
-            gameState->gameOver = true;
-            break;
-        }
-
-        if((ret > 0) && FD_ISSET(playerProcesses[currentPlayer].pipeFd, &readFds)){
-            unsigned char direction;        /* Dirección recibida del jugador. */
-
-            /* Leer dirección del jugador. */
-            ssize_t bytesRead;
-            do{
-                bytesRead = read(playerProcesses[currentPlayer].pipeFd, &direction, 1);
-            }while((bytesRead == -1) && (errno == EINTR) && !gInterrupted);
-
-            if(bytesRead == -1){
-                perror("Error leyendo movimiento del jugador");
-            }
-
-            if(bytesRead == 1){
-                int lockRet = semWaitWithInterrupt(&gameSync->masterMutex);
-                if(lockRet == 1){
-                    gameState->gameOver = true;
-                    break;
-                }
-                if(lockRet == -1){
-                    perror("Error en sem_wait masterMutex");
-                    gameState->gameOver = true;
-                    break;
-                }
-
-                lockRet = semWaitWithInterrupt(&gameSync->stateMutex);
-                if(lockRet == 1){
-                    sem_post(&gameSync->masterMutex);
-                    gameState->gameOver = true;
-                    break;
-                }
-                if(lockRet == -1){
-                    perror("Error en sem_wait stateMutex");
-                    sem_post(&gameSync->masterMutex);
-                    gameState->gameOver = true;
-                    break;
-                }
-
-                /* Adquirir escritura exclusiva. */
-                /* Validar y aplicar movimiento */
-                if(validateMove(gameState, currentPlayer, direction)){
-                    applyMove(gameState, currentPlayer, direction);
-                    gameState->players[currentPlayer].validMoves++;
-                    startTime = time(NULL);     /* Actualizar el tiempo de inicio. */
-                }else{
-                    gameState->players[currentPlayer].invalidMoves++;
-                }
-
-                /* Liberar escritura exclusiva. */
-                sem_post(&gameSync->stateMutex);
-                sem_post(&gameSync->masterMutex);
-
-                /* Notificar vista. */
-                if(viewReady){
-                    if(notifyView(gameSync) == -1){
-                        viewReady = 0;
-                    }
-                }
-
-                /* Desbloqueo al jugador actual si estaba esperando permiso. 
-                ** Evito que el jugador siga ejecutándose antes de que el master 
-                ** termine de procesar su movimiento. */
-                sem_post(&gameSync->playerSem[currentPlayer]);
-            }
-        }
-
-        /* Avanzo al siguiente jugador de forma ciruclar. */
-        currentPlayer = (currentPlayer + 1) % params.playerCount;
-
-        /* Agregamos un pequeño delay para que las interaciones sean visibles. */
-        usleep(params.delay * 1000);
-    }
+    runMasterLoop(gameState, gameSync, playerProcesses, &params, &viewReady, &gInterrupted);
 
     if(gInterrupted){
         fprintf(stderr, "\n\nInterrumpido por señal, borrando...\n");   /* por ej.: CTRL + C*/
@@ -260,29 +86,7 @@ int main(int argc, char *argv[]){
     }
 
     cleanup(playerProcesses, (int)params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, viewPid, gInterrupted);
+    freeParams(&params);
 
-    /* Esperar a que termine la vista */
-    if(viewPid > 0){
-        int viewStatus;
-        pid_t waited;
-
-        do{
-            waited = waitpid(viewPid, &viewStatus, 0);
-        }while((waited == -1) && (errno == EINTR));
-
-        if(waited == -1){
-            perror("Error esperando a la vista");
-            return 1;
-        }
-
-        if(WIFEXITED(viewStatus)){
-            printf("Vista (PID: %d): salió con estado: %d\n", viewPid, WEXITSTATUS(viewStatus));
-        }else{
-            if(WIFSIGNALED(viewStatus)){
-                printf("Vista (PID: %d): abortado por señal: %d\n", viewPid, WTERMSIG(viewStatus));
-            }
-        }
-    }
-
-    return 0;
+    return (waitViewProcess(viewPid) == -1) ? 1 : 0;
 }

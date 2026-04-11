@@ -36,7 +36,7 @@ unsigned char findBestMove(const GameState *state, int myIndex){
     int bestValue = -1;
 
     /* Recorre todas las direcciones y calcula la mejor posibilidad para moverse. */
-    for(int dir = 0; dir < 8; dir++){
+    for(int dir = 0; dir < DIRECTION_COUNT; dir++){
         int nx = myX + DX[dir];
         int ny = myY + DY[dir];
 

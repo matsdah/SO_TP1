@@ -169,29 +169,59 @@ int syncClose(int shmFd, SyncData *gameSync){
 
 void acquireReadLock(SyncData *sync){
 
-    sem_wait(&sync->masterMutex);
+    if(sem_wait(&sync->masterMutex) == -1){
+        perror("Error en sem_wait masterMutex");
+        return;
+    }
 
-    sem_wait(&sync->readCountMutex);
+    if(sem_wait(&sync->readCountMutex) == -1){
+        perror("Error en sem_wait readCountMutex");
+        if(sem_post(&sync->masterMutex) == -1){
+            perror("Error en sem_post masterMutex");
+        }
+        return;
+    }
 
     sync->readersCount++;
 
     if(sync->readersCount == 1){
-        sem_wait(&sync->stateMutex);    /* Primer lector bloquea */
+        if(sem_wait(&sync->stateMutex) == -1){    /* Primer lector bloquea */
+            perror("Error en sem_wait stateMutex");
+            sync->readersCount--;
+            if(sem_post(&sync->readCountMutex) == -1){
+                perror("Error en sem_post readCountMutex");
+            }
+            if(sem_post(&sync->masterMutex) == -1){
+                perror("Error en sem_post masterMutex");
+            }
+            return;
+        }
     }
 
-    sem_post(&sync->readCountMutex);
+    if(sem_post(&sync->readCountMutex) == -1){
+        perror("Error en sem_post readCountMutex");
+    }
 
-    sem_post(&sync->masterMutex);
+    if(sem_post(&sync->masterMutex) == -1){
+        perror("Error en sem_post masterMutex");
+    }
 }
 
 void releaseReadLock(SyncData *sync){
 
-    sem_wait(&sync->readCountMutex);
+    if(sem_wait(&sync->readCountMutex) == -1){
+        perror("Error en sem_wait readCountMutex");
+        return;
+    }
 
     sync->readersCount--;
 
     if(sync->readersCount == 0){
-        sem_post(&sync->stateMutex);    /* Ultimo lector desbloquea */
+        if(sem_post(&sync->stateMutex) == -1){    /* Ultimo lector desbloquea */
+            perror("Error en sem_post stateMutex");
+        }
     }
-    sem_post(&sync->readCountMutex);
+    if(sem_post(&sync->readCountMutex) == -1){
+        perror("Error en sem_post readCountMutex");
+    }
 }

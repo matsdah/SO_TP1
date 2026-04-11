@@ -29,6 +29,9 @@ int handleHeight(const char *value, void *context);
 /* Handler para el flag -w (ancho del tablero). */
 int handleWidth(const char *value, void *context);
 
+/* Libera memoria dinámica asociada a Params (view y players). */
+void freeParams(Params *config);
+
 /* Busca un parametro por su flag en el array de parametros. */
 const ParamDef *findParam(const char *arg, const ParamDef params[], int paramCount);
 

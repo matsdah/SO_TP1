@@ -3,6 +3,7 @@
 
 #include <structures.h>
 #include <time.h>
+#include <signal.h>
 
 /* Inicializa el tablero con valores aleatorios entre 1 y 9. */
 void initializeBoard(GameState *state, unsigned int seed);
@@ -12,6 +13,24 @@ void placePlayers(GameState *state);
 
 /* Crea los procesos de los jugadores y configura los pipes. */
 int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state);
+
+/* Crea e inicializa memoria compartida y semáforos del juego. */
+int setupGameResources(const Params *params, int *stateFd, GameState **state, int *syncFd, SyncData **sync);
+
+/* Inicializa los campos del estado y el tablero del juego. */
+void setupInitialGameState(GameState *state, const Params *params);
+
+/* Inicializa estructura de procesos de jugadores. */
+void initPlayerProcesses(PlayerProcess *processes, int count);
+
+/* Crea proceso de vista (si corresponde) y actualiza su estado. */
+int spawnViewProcess(const Params *params, pid_t *viewPid, int *viewReady);
+
+/* Ejecuta el loop principal del master. */
+void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *playerProcesses, const Params *params, int *viewReady, volatile sig_atomic_t *interrupted);
+
+/* Espera finalización del proceso de vista e imprime su estado. */
+int waitViewProcess(pid_t viewPid);
 
 /* Valida si un movimiento en la direccion dada es legal. */
 int validateMove(GameState *state, int playerIdx, unsigned char direction);

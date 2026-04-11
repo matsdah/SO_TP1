@@ -11,6 +11,12 @@
 /* Numero maximo de jugadores. */
 #define CANT_PLAYERS 9
 
+/* Cantidad de direcciones posibles por movimiento. */
+#define DIRECTION_COUNT 8
+
+/* Largo maximo de un uint16 en string ("65535" + '\0'). */
+#define U16_STR_LEN 6
+
 /* Macro para acceder a una posicion del tablero. */
 #define BOARD_AT(board, w, i, j) ((board)[((i) * (w)) + (j)])
 

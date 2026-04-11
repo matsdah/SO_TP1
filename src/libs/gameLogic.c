@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <semaphore.h>
 #include <errno.h>
@@ -14,14 +15,55 @@
 */
 
 /* Vectores de direccion (0=UP, 1=UP_RIGHT, ..., 7=UP_LEFT) */
-static const int DX[8] = {0, 1, 1, 1, 0, -1, -1, -1};
-static const int DY[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+static const int DX[DIRECTION_COUNT] = {0, 1, 1, 1, 0, -1, -1, -1};
+static const int DY[DIRECTION_COUNT] = {-1, -1, 0, 1, 1, 1, 0, -1};
+
+static int semWaitWithInterrupt(sem_t *sem, volatile sig_atomic_t *interrupted){
+    while(sem_wait(sem) == -1){
+        if(errno == EINTR){
+            if(*interrupted){
+                return 1;
+            }
+            continue;
+        }
+
+        return -1;
+    }
+
+    return 0;
+}
+
+static void setTimeoutFromDelayMs(struct timeval *tv, size_t delayMs){
+    tv->tv_sec = (time_t)(delayMs / 1000);
+    tv->tv_usec = (suseconds_t)((delayMs % 1000) * 1000);
+}
+
+static int sleepMsWithInterrupt(size_t delayMs, volatile sig_atomic_t *interrupted){
+    struct timespec req;
+    struct timespec rem;
+
+    req.tv_sec = (time_t)(delayMs / 1000);
+    req.tv_nsec = (long)((delayMs % 1000) * 1000000L);
+
+    while(nanosleep(&req, &rem) == -1){
+        if(errno == EINTR){
+            if(*interrupted){
+                return 1;
+            }
+            req = rem;
+            continue;
+        }
+        return -1;
+    }
+
+    return 0;
+}
 
 void initializeBoard(GameState *state, unsigned int seed){
     /* Semilla para generación de números aleatorios. */
     srand(seed);    
 
-    size_t totalCells = (size_t)(state->width * state->height);
+    size_t totalCells = (size_t)state->width * (size_t)state->height;
 
     for(size_t i = 0; i < totalCells; i++){
         state->board[i] = ((rand() % 9) + 1);   /* Valores aleatorios entre 1 y 9 */
@@ -80,20 +122,20 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
             if(dup2(pipeFds[1], STDOUT_FILENO) == -1){
                 perror("Fallo en la duplicacion del descriptor de archivo.");
                 close(pipeFds[1]);
-                exit(1);
+                _exit(1);
             }
 
             close(pipeFds[1]);
 
-            char widthStr[16];
-            char heightStr[16];
+            char widthStr[U16_STR_LEN];
+            char heightStr[U16_STR_LEN];
 
             snprintf(widthStr, sizeof(widthStr), "%u", state->width);
             snprintf(heightStr, sizeof(heightStr), "%u", state->height);
 
             execl(params->players[i], params->players[i], widthStr, heightStr, NULL);
             perror("Fallo en la ejecucion del jugador.");
-            exit(1);
+            _exit(1);
 
         }else{
             /* Proceso padre */
@@ -109,8 +151,226 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
     return 0;
 }
 
+int setupGameResources(const Params *params, int *stateFd, GameState **state, int *syncFd, SyncData **sync){
+    if(stateCreate(stateFd, state, params->width, params->height) == -1){
+        perror("Error en stateCreate.");
+        return -1;
+    }
+
+    if(syncCreate(syncFd, sync) == -1){
+        perror("Error en syncCreate.");
+        stateClose(*stateFd, *state, params->width, params->height);
+        stateUnlink();
+        return -1;
+    }
+
+    if(syncInit(*sync, params->playerCount) == -1){
+        perror("Error en syncInit.");
+        syncClose(*syncFd, *sync);
+        syncUnlink();
+        stateClose(*stateFd, *state, params->width, params->height);
+        stateUnlink();
+        return -1;
+    }
+
+    return 0;
+}
+
+void setupInitialGameState(GameState *state, const Params *params){
+    state->width = params->width;
+    state->height = params->height;
+    state->playerCount = params->playerCount;
+    state->gameOver = false;
+
+    initializeBoard(state, params->seed);
+    placePlayers(state);
+}
+
+void initPlayerProcesses(PlayerProcess *processes, int count){
+    for(int i = 0; i < count; i++){
+        processes[i].pid = -1;
+        processes[i].pipeFd = -1;
+    }
+}
+
+int spawnViewProcess(const Params *params, pid_t *viewPid, int *viewReady){
+    *viewPid = -1;
+    *viewReady = 0;
+
+    if(params->view == NULL){
+        return 0;
+    }
+
+    *viewPid = fork();
+    if(*viewPid == 0){
+        char widthStr[U16_STR_LEN];
+        char heightStr[U16_STR_LEN];
+
+        snprintf(widthStr, sizeof(widthStr), "%hu", params->width);
+        snprintf(heightStr, sizeof(heightStr), "%hu", params->height);
+
+        execl(params->view, params->view, widthStr, heightStr, NULL);
+        perror("execl view");
+        _exit(1);
+    }
+
+    if(*viewPid < 0){
+        perror("Error en la vista de fork.");
+        return -1;
+    }
+
+    *viewReady = 1;
+    return 0;
+}
+
+void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *playerProcesses, const Params *params, int *viewReady, volatile sig_atomic_t *interrupted){
+    time_t startTime = time(NULL);
+    int currentPlayer = 0;
+    fd_set readFds;
+    struct timeval tv;
+
+    while(!gameState->gameOver && !(*interrupted)){
+        checkGameOver(gameState, startTime, params->timeout);
+
+        if(*interrupted){
+            gameState->gameOver = true;
+        }
+        if(gameState->gameOver){
+            break;
+        }
+
+        FD_ZERO(&readFds);
+        FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
+
+        int ret;
+        do{
+            setTimeoutFromDelayMs(&tv, params->delay);
+            ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
+        }while((ret == -1) && (errno == EINTR) && !(*interrupted));
+
+        if(ret == -1){
+            perror("Error en select");
+            gameState->gameOver = true;
+            break;
+        }
+
+        if((ret > 0) && FD_ISSET(playerProcesses[currentPlayer].pipeFd, &readFds)){
+            unsigned char direction;
+            ssize_t bytesRead;
+
+            do{
+                bytesRead = read(playerProcesses[currentPlayer].pipeFd, &direction, 1);
+            }while((bytesRead == -1) && (errno == EINTR) && !(*interrupted));
+
+            if(bytesRead == -1){
+                perror("Error leyendo movimiento del jugador");
+            }
+
+            if(bytesRead == 1){
+                int lockRet = semWaitWithInterrupt(&gameSync->masterMutex, interrupted);
+                if(lockRet == 1){
+                    gameState->gameOver = true;
+                    break;
+                }
+                if(lockRet == -1){
+                    perror("Error en sem_wait masterMutex");
+                    gameState->gameOver = true;
+                    break;
+                }
+
+                lockRet = semWaitWithInterrupt(&gameSync->stateMutex, interrupted);
+                if(lockRet == 1){
+                    if(sem_post(&gameSync->masterMutex) == -1){
+                        perror("Error en sem_post masterMutex");
+                    }
+                    gameState->gameOver = true;
+                    break;
+                }
+                if(lockRet == -1){
+                    perror("Error en sem_wait stateMutex");
+                    if(sem_post(&gameSync->masterMutex) == -1){
+                        perror("Error en sem_post masterMutex");
+                    }
+                    gameState->gameOver = true;
+                    break;
+                }
+
+                if(validateMove(gameState, currentPlayer, direction)){
+                    applyMove(gameState, currentPlayer, direction);
+                    gameState->players[currentPlayer].validMoves++;
+                    startTime = time(NULL);
+                }else{
+                    gameState->players[currentPlayer].invalidMoves++;
+                }
+
+                if(sem_post(&gameSync->stateMutex) == -1){
+                    perror("Error en sem_post stateMutex");
+                    gameState->gameOver = true;
+                    break;
+                }
+                if(sem_post(&gameSync->masterMutex) == -1){
+                    perror("Error en sem_post masterMutex");
+                    gameState->gameOver = true;
+                    break;
+                }
+
+                if(*viewReady){
+                    if(notifyView(gameSync) == -1){
+                        *viewReady = 0;
+                    }
+                }
+
+                if(sem_post(&gameSync->playerSem[currentPlayer]) == -1){
+                    perror("Error en sem_post playerSem");
+                    gameState->gameOver = true;
+                    break;
+                }
+            }
+        }
+
+        currentPlayer = (currentPlayer + 1) % params->playerCount;
+
+        int sleepRet = sleepMsWithInterrupt(params->delay, interrupted);
+        if(sleepRet == -1){
+            perror("Error en nanosleep");
+            gameState->gameOver = true;
+            break;
+        }
+        if(sleepRet == 1){
+            gameState->gameOver = true;
+            break;
+        }
+    }
+}
+
+int waitViewProcess(pid_t viewPid){
+    if(viewPid <= 0){
+        return 0;
+    }
+
+    int viewStatus;
+    pid_t waited;
+
+    do{
+        waited = waitpid(viewPid, &viewStatus, 0);
+    }while((waited == -1) && (errno == EINTR));
+
+    if(waited == -1){
+        perror("Error esperando a la vista");
+        return -1;
+    }
+
+    if(WIFEXITED(viewStatus)){
+        printf("Vista (PID: %d): salió con estado: %d\n", viewPid, WEXITSTATUS(viewStatus));
+    }else if(WIFSIGNALED(viewStatus)){
+        printf("Vista (PID: %d): abortado por señal: %d\n", viewPid, WTERMSIG(viewStatus));
+    }
+
+    return 0;
+}
+
 int validateMove(GameState *state, int playerIdx, unsigned char direction){
-    if(direction >= 8){
+    if(direction >= DIRECTION_COUNT){
         /* Dirección inválida. */
         return 0;
     }
@@ -158,7 +418,9 @@ int notifyView(SyncData *sync){
     }
     deadline.tv_sec += 1;
 
-    sem_post(&sync->printNeeded);       /* Libera el semáforo de impresión. */
+    if(sem_post(&sync->printNeeded) == -1){
+        return -1;
+    }
     while(sem_timedwait(&sync->renderDone, &deadline) == -1){
         if(errno == EINTR){
             continue;
@@ -186,7 +448,7 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout){
         Player *player = &state->players[i];
         bool hasValidMove = false;
 
-        for(unsigned char dir = 0; dir < 8; dir++){
+        for(unsigned char dir = 0; dir < DIRECTION_COUNT; dir++){
             int newX = (int)player->x + DX[dir];
             int newY = (int)player->y + DY[dir];
 
@@ -231,7 +493,9 @@ void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sy
         state->gameOver = true;
         /* Desbloquea a todos los jugadores para que vean gameOver */
         for(int i = 0; i < count; i++){
-            sem_post(&sync->playerSem[i]);
+            if(sem_post(&sync->playerSem[i]) == -1){
+                perror("Error en sem_post playerSem");
+            }
         }
     }
     /* Notifica a la vista */

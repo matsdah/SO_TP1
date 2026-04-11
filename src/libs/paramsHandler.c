@@ -37,6 +37,30 @@ static ParamDef gParameters[] = {
     {"-p", 1, handlePlayers},
 };
 
+void freeParams(Params *config){
+    if(config == NULL){
+        return;
+    }
+
+    if(config->view != NULL){
+        free(config->view);
+        config->view = NULL;
+    }
+
+    for(size_t i = 0; i < config->playerCount && i < CANT_PLAYERS; i++){
+        if(config->players[i] != NULL){
+            free(config->players[i]);
+            config->players[i] = NULL;
+        }
+    }
+
+    for(size_t i = config->playerCount; i < CANT_PLAYERS; i++){
+        config->players[i] = NULL;
+    }
+
+    config->playerCount = 0;
+}
+
 static int isFlag(const char *arg){
     return ((arg != NULL) && (arg[0] == '-') && (arg[1] != '\0'));
 }
@@ -110,6 +134,7 @@ int parseParams(int argc, char *argv[], Params *config){
 
         if(param == NULL){
             fprintf(stderr, "Error: parametro '%s' desconocido. \n", argv[i]);
+            freeParams(config);
             return 0;
         }
 
@@ -124,6 +149,7 @@ int parseParams(int argc, char *argv[], Params *config){
 
             while(i + 1 < argc && !isFlag(argv[i + 1])){
                 if(!param->handler(argv[i + 1], config)){
+                    freeParams(config);
                     return 0;
                 }
 
@@ -133,6 +159,7 @@ int parseParams(int argc, char *argv[], Params *config){
 
             if(consumed == 0){
                 fprintf(stderr, "Error: parametro '-p' espera al menos un path de jugador.\n");
+                freeParams(config);
                 return 0;
             }
 
@@ -143,18 +170,21 @@ int parseParams(int argc, char *argv[], Params *config){
         if(param->expectsValue){
             if(i + 1 >= argc){
                 fprintf(stderr, "Error: parametro '%s' espera un valor\n", argv[i]);
+                freeParams(config);
                 return 0;
             }
 
             const char *value = argv[i + 1];
 
             if(!param->handler(value, config)){
+                freeParams(config);
                 return 0;
             }
 
             i++;
         }else{
             if(!param->handler(NULL, config)){
+                freeParams(config);
                 return 0;
             }
         }
@@ -163,6 +193,7 @@ int parseParams(int argc, char *argv[], Params *config){
     /* Valida la cantidad de jugadores. */
     if(config->playerCount < 1 || config->playerCount > CANT_PLAYERS){
         fprintf(stderr, "Error: cantidad de jugadores debe estar entre 1 y 9.\n");
+        freeParams(config);
         return 0;
     }
 
@@ -170,6 +201,7 @@ int parseParams(int argc, char *argv[], Params *config){
     if(config->playerCount > totalCells){
         fprintf(stderr, "Error: la cantidad de jugadores (%zu) no puede superar las celdas del tablero (%zu).\n",
                 config->playerCount, totalCells);
+        freeParams(config);
         return 0;
     }
 
@@ -204,7 +236,14 @@ int handleSeed(const char *value, void *context){
 int handleView(const char *value, void *context) {
     Params *cfg = (Params *)context;
     size_t len = strlen(value);
-    char *copy = malloc(len + 1);
+    char *copy;
+
+    if(cfg->view != NULL){
+        free(cfg->view);
+        cfg->view = NULL;
+    }
+
+    copy = malloc(len + 1);
 
     if(copy == NULL){
         fprintf(stderr, "Error: no hay memoria suficiente para el path de la vista.\n");
