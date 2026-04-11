@@ -1,4 +1,7 @@
 #include <paramsHandler.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +19,7 @@ Params defaultParams(){
         .height = 10,
         .delay = 200,
         .timeout = 10,
-        .seed = (int) time(NULL),
+        .seed = (size_t)time(NULL),
         .view = NULL,
         .players = { NULL },
         .playerCount = 0
@@ -36,6 +39,50 @@ static ParamDef gParameters[] = {
 
 static int isFlag(const char *arg){
     return ((arg != NULL) && (arg[0] == '-') && (arg[1] != '\0'));
+}
+
+static int parseUnsignedShortInRange(const char *value, unsigned short *out, unsigned short min, unsigned short max, const char *fieldName){
+    char *endptr = NULL;
+    errno = 0;
+
+    unsigned long parsed = strtoul(value, &endptr, 10);
+    if(errno != 0 || endptr == value || *endptr != '\0'){
+        fprintf(stderr, "Error: valor invalido para %s: '%s'.\n", fieldName, value);
+        return 0;
+    }
+
+    if(parsed < min || parsed > max){
+        fprintf(stderr, "Error: %s debe estar entre %hu y %hu.\n", fieldName, min, max);
+        return 0;
+    }
+
+    *out = (unsigned short)parsed;
+    return 1;
+}
+
+static int parseSizeTInRange(const char *value, size_t *out, size_t min, size_t max, const char *fieldName){
+    char *endptr = NULL;
+    errno = 0;
+
+    unsigned long long parsed = strtoull(value, &endptr, 10);
+    if(errno != 0 || endptr == value || *endptr != '\0'){
+        fprintf(stderr, "Error: valor invalido para %s: '%s'.\n", fieldName, value);
+        return 0;
+    }
+
+    if(parsed > (unsigned long long)SIZE_MAX){
+        fprintf(stderr, "Error: valor fuera de rango para %s.\n", fieldName);
+        return 0;
+    }
+
+    size_t parsedSize = (size_t)parsed;
+    if(parsedSize < min || parsedSize > max){
+        fprintf(stderr, "Error: %s fuera de rango.\n", fieldName);
+        return 0;
+    }
+
+    *out = parsedSize;
+    return 1;
 }
 
 const ParamDef *findParam(const char *arg, const ParamDef params[], int paramCount){
@@ -114,8 +161,15 @@ int parseParams(int argc, char *argv[], Params *config){
     }
 
     /* Valida la cantidad de jugadores. */
-    if(config->playerCount < 1 || config->playerCount > 9){
+    if(config->playerCount < 1 || config->playerCount > CANT_PLAYERS){
         fprintf(stderr, "Error: cantidad de jugadores debe estar entre 1 y 9.\n");
+        return 0;
+    }
+
+    size_t totalCells = (size_t)config->width * (size_t)config->height;
+    if(config->playerCount > totalCells){
+        fprintf(stderr, "Error: la cantidad de jugadores (%zu) no puede superar las celdas del tablero (%zu).\n",
+                config->playerCount, totalCells);
         return 0;
     }
 
@@ -124,37 +178,27 @@ int parseParams(int argc, char *argv[], Params *config){
 
 int handleWidth(const char *value, void *context){
     Params *cfg = (Params *)context;
-    cfg->width = atoi(value);
-
-    return 1;
+    return parseUnsignedShortInRange(value, &cfg->width, 1, USHRT_MAX, "ancho");
 }
 
 int handleHeight(const char *value, void *context){
     Params *cfg = (Params *)context;
-    cfg->height = atoi(value);
-
-    return 1;
+    return parseUnsignedShortInRange(value, &cfg->height, 1, USHRT_MAX, "alto");
 }
 
 int handleTimeout(const char *value, void *context){
     Params *cfg = (Params *)context;
-    cfg->timeout = atoi(value);
-
-    return 1;
+    return parseSizeTInRange(value, &cfg->timeout, 0, SIZE_MAX, "timeout");
 }
 
 int handleDelay(const char *value, void *context){
     Params *cfg = (Params *)context;
-    cfg->delay = atoi(value);
-
-    return 1;
+    return parseSizeTInRange(value, &cfg->delay, 1, SIZE_MAX, "delay");
 }
 
 int handleSeed(const char *value, void *context){
     Params *cfg = (Params *)context;
-    cfg->seed = atoi(value);
-
-    return 1;
+    return parseSizeTInRange(value, &cfg->seed, 0, SIZE_MAX, "seed");
 }
 
 int handleView(const char *value, void *context) {
@@ -178,7 +222,7 @@ int handlePlayers(const char *value, void *context){
     size_t len = strlen(value);
     char *copy;
 
-    if(cfg->playerCount >= 9){
+    if(cfg->playerCount >= CANT_PLAYERS){
         fprintf(stderr, "Error: cantidad maxima de jugadores es 9.\n");
         return 0;
     }

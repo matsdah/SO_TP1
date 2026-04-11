@@ -20,7 +20,7 @@ int validateMove(GameState *state, int playerIdx, unsigned char direction);
 void applyMove(GameState *state, int playerIdx, unsigned char direction);
 
 /* Notifica a la vista que debe renderizar el estado actual. */
-void notifyView(SyncData *sync);
+int notifyView(SyncData *sync);
 
 /* Verifica si el juego ha terminado por timeout o bloqueo de todos los jugadores. */
 void checkGameOver(GameState *state, time_t startTime, size_t timeout);

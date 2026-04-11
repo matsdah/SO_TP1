@@ -10,6 +10,7 @@
 #include <time.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <errno.h>
 
 /* 
 ** master.c -> parsea argumentos, crea memoria compartida, inicializa semáforos, 
@@ -18,9 +19,24 @@
 
 /* Variables globales para el signal handler */
 static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
-static GameState *gGameState = NULL;            /* Estado del juego. */
+
+static int semWaitWithInterrupt(sem_t *sem){
+    while(sem_wait(sem) == -1){
+        if(errno == EINTR){
+            if(gInterrupted){
+                return 1;
+            }
+            continue;
+        }
+
+        return -1;
+    }
+
+    return 0;
+}
 
 static void signalHandler(int sig){
+    (void)sig;
     gInterrupted = 1;       /* Indica que se recibió una señal de interrupción. */
 }
 
@@ -82,7 +98,7 @@ int main(int argc, char *argv[]){
     placePlayers(gameState);
 
     /* Crear procesos de jugadores */
-    PlayerProcess playerProcesses[gameState->playerCount];
+    PlayerProcess playerProcesses[CANT_PLAYERS];
 
     for(int i = 0; i < gameState->playerCount; i++){
         playerProcesses[i].pid = -1;
@@ -96,6 +112,7 @@ int main(int argc, char *argv[]){
 
     /* Crear proceso de visualizacion */
     pid_t viewPid = -1;
+    int viewReady = 0;
 
     if(params.view != NULL){
         viewPid = fork();
@@ -105,8 +122,8 @@ int main(int argc, char *argv[]){
             char widthStr[16];      
             char heightStr[16];
 
-            snprintf(widthStr, sizeof(widthStr), "%zu", params.width);
-            snprintf(heightStr, sizeof(heightStr), "%zu", params.height);
+            snprintf(widthStr, sizeof(widthStr), "%hu", params.width);
+            snprintf(heightStr, sizeof(heightStr), "%hu", params.height);
 
             execl(params.view, params.view, widthStr, heightStr, NULL);
             perror("execl view");
@@ -115,16 +132,17 @@ int main(int argc, char *argv[]){
         }else{
             if(viewPid < 0){
                 perror("Error en la vista de fork.");
+            }else{
+                viewReady = 1;
             }
         }
     }
 
-    /* Configurar variables globales para signal handler */
-    gGameState = gameState;
-
     /* Notificar estado inicial a la vista */
-    if(viewPid > 0){
-        notifyView(gameSync);
+    if(viewReady){
+        if(notifyView(gameSync) == -1){
+            viewReady = 0;
+        }
     }
 
     /* Loop principal */
@@ -148,22 +166,59 @@ int main(int argc, char *argv[]){
         FD_ZERO(&readFds);
         FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
 
-        tv.tv_sec = 0;
-        tv.tv_usec = params.delay * 1000;
+        
+        int ret;
+        do{
+            tv.tv_sec = 0;
+            tv.tv_usec = params.delay * 1000;
+            ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
+        }while((ret == -1) && (errno == EINTR) && !gInterrupted);
 
-        int ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
+        if(ret == -1){
+            perror("Error en select");
+            gameState->gameOver = true;
+            break;
+        }
 
         if((ret > 0) && FD_ISSET(playerProcesses[currentPlayer].pipeFd, &readFds)){
             unsigned char direction;        /* Dirección recibida del jugador. */
 
             /* Leer dirección del jugador. */
-            ssize_t bytesRead = read(playerProcesses[currentPlayer].pipeFd, &direction, 1);
+            ssize_t bytesRead;
+            do{
+                bytesRead = read(playerProcesses[currentPlayer].pipeFd, &direction, 1);
+            }while((bytesRead == -1) && (errno == EINTR) && !gInterrupted);
+
+            if(bytesRead == -1){
+                perror("Error leyendo movimiento del jugador");
+            }
 
             if(bytesRead == 1){
-                /* Adquirir escritura exclusiva. */
-                sem_wait(&gameSync->masterMutex);
-                sem_wait(&gameSync->stateMutex);
+                int lockRet = semWaitWithInterrupt(&gameSync->masterMutex);
+                if(lockRet == 1){
+                    gameState->gameOver = true;
+                    break;
+                }
+                if(lockRet == -1){
+                    perror("Error en sem_wait masterMutex");
+                    gameState->gameOver = true;
+                    break;
+                }
 
+                lockRet = semWaitWithInterrupt(&gameSync->stateMutex);
+                if(lockRet == 1){
+                    sem_post(&gameSync->masterMutex);
+                    gameState->gameOver = true;
+                    break;
+                }
+                if(lockRet == -1){
+                    perror("Error en sem_wait stateMutex");
+                    sem_post(&gameSync->masterMutex);
+                    gameState->gameOver = true;
+                    break;
+                }
+
+                /* Adquirir escritura exclusiva. */
                 /* Validar y aplicar movimiento */
                 if(validateMove(gameState, currentPlayer, direction)){
                     applyMove(gameState, currentPlayer, direction);
@@ -178,8 +233,10 @@ int main(int argc, char *argv[]){
                 sem_post(&gameSync->masterMutex);
 
                 /* Notificar vista. */
-                if(viewPid > 0){
-                    notifyView(gameSync);
+                if(viewReady){
+                    if(notifyView(gameSync) == -1){
+                        viewReady = 0;
+                    }
                 }
 
                 /* Desbloqueo al jugador actual si estaba esperando permiso. 
@@ -207,8 +264,16 @@ int main(int argc, char *argv[]){
     /* Esperar a que termine la vista */
     if(viewPid > 0){
         int viewStatus;
+        pid_t waited;
 
-        waitpid(viewPid, &viewStatus, 0);
+        do{
+            waited = waitpid(viewPid, &viewStatus, 0);
+        }while((waited == -1) && (errno == EINTR));
+
+        if(waited == -1){
+            perror("Error esperando a la vista");
+            return 1;
+        }
 
         if(WIFEXITED(viewStatus)){
             printf("Vista (PID: %d): salió con estado: %d\n", viewPid, WEXITSTATUS(viewStatus));

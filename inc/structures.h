@@ -53,9 +53,9 @@ typedef struct {
 
 /* Estructura con los parametros de configuracion del juego. */
 typedef struct {
-    size_t width;                       /* Ancho del tablero. */
-    size_t height;                      /* Alto del tablero. */
-    size_t delay;                       /* Retraso en milisegundos- */
+    unsigned short width;                       /* Ancho del tablero. */
+    unsigned short height;                      /* Alto del tablero. */
+    size_t delay;                       /* Retraso en milisegundos. */
     size_t timeout;                     /* Timeout en segundos. */
     size_t seed;                        /* Semilla para generación aleatoria. */
     char *view;                         /* Ruta del binario de la vista. */

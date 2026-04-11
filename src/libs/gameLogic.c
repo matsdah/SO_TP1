@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <semaphore.h>
+#include <errno.h>
 
 /* 
 ** gameLogic.c -> implementa la lógica del juego, incluyendo la inicialización aleatoria del tablero, 
@@ -32,10 +33,12 @@ void placePlayers(GameState *state){
     unsigned short w = state->width;
     unsigned short h = state->height;
     unsigned char count = state->playerCount;
+    size_t totalCells = (size_t)w * (size_t)h;
 
     for(i = 0; i < count; i++){
-        state->players[i].x = ((i * w) / count);
-        state->players[i].y = ((i * h) / count);
+        size_t linearIndex = ((size_t)i * totalCells) / (size_t)count;
+        state->players[i].x = (unsigned short)(linearIndex % w);
+        state->players[i].y = (unsigned short)(linearIndex / w);
         state->players[i].score = 0;
         state->players[i].validMoves = 0;
         state->players[i].invalidMoves = 0;
@@ -148,9 +151,25 @@ void applyMove(GameState *state, int playerIdx, unsigned char direction){
     player->y = newY;
 }
 
-void notifyView(SyncData *sync){
+int notifyView(SyncData *sync){
+    struct timespec deadline;
+    if(clock_gettime(CLOCK_REALTIME, &deadline) == -1){
+        return -1;
+    }
+    deadline.tv_sec += 1;
+
     sem_post(&sync->printNeeded);       /* Libera el semáforo de impresión. */
-    sem_wait(&sync->renderDone);        /* Espera a que la vista termine de renderizar. */
+    while(sem_timedwait(&sync->renderDone, &deadline) == -1){
+        if(errno == EINTR){
+            continue;
+        }
+        if(errno == ETIMEDOUT){
+            return -1;
+        }
+        return -1;
+    }
+
+    return 0;
 }
 
 void checkGameOver(GameState *state, time_t startTime, size_t timeout){
@@ -208,22 +227,18 @@ void printResults(GameState *state){
 }
 
 void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid, int interrupted){
-    
-    if(state != NULL){
+    if(state != NULL && sync != NULL){
         state->gameOver = true;
-    }
-
-    if(sync != NULL){
         /* Desbloquea a todos los jugadores para que vean gameOver */
         for(int i = 0; i < count; i++){
             sem_post(&sync->playerSem[i]);
         }
     }
-
     /* Notifica a la vista */
-    if(viewPid > 0 && !interrupted){
-        notifyView(sync);
+    if(sync != NULL && viewPid > 0 && !interrupted){
+        (void)notifyView(sync);
     }
+
 
     printf("\n⚪⚪⚪⚪⚪ Estado de Salida de Procesos Hijos ⚪⚪⚪⚪⚪\n");
 
@@ -234,7 +249,15 @@ void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sy
             close(processes[i].pipeFd);     /* Cierra el descriptor de archivo del pipe. */
         }
         if(processes[i].pid > 0){
-            waitpid(processes[i].pid, &status, 0);      /* Espera a que el proceso hijo termine. */
+            pid_t waited;
+            do{
+                waited = waitpid(processes[i].pid, &status, 0);      /* Espera a que el proceso hijo termine. */
+            }while((waited == -1) && (errno == EINTR));
+
+            if(waited == -1){
+                perror("Error esperando jugador");
+                continue;
+            }
             /* Imprime el estado de salida del proceso hijo. */
             if(WIFEXITED(status)){
                 printf("Jugador N°%d (PID: %d): salió con estado %d\n", i + 1, processes[i].pid, WEXITSTATUS(status));
