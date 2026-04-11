@@ -65,6 +65,8 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
         if(pid == -1){
             /* Fallo la creacion del proceso hijo, muestro mensaje de error. */
             perror("Fallo en la creacion del proceso hijo.");
+            close(pipeFds[0]);
+            close(pipeFds[1]);
             return -1;
         }
 
@@ -74,6 +76,7 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
 
             if(dup2(pipeFds[1], STDOUT_FILENO) == -1){
                 perror("Fallo en la duplicacion del descriptor de archivo.");
+                close(pipeFds[1]);
                 exit(1);
             }
 
@@ -205,11 +208,16 @@ void printResults(GameState *state){
 }
 
 void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sync, int stateFd, int syncFd, size_t width, size_t height, pid_t viewPid, int interrupted){
-    state->gameOver = true;
+    
+    if(state != NULL){
+        state->gameOver = true;
+    }
 
-    /* Desbloquea a todos los jugadores para que vean gameOver */
-    for(int i = 0; i < count; i++){
-        sem_post(&sync->playerSem[i]);
+    if(sync != NULL){
+        /* Desbloquea a todos los jugadores para que vean gameOver */
+        for(int i = 0; i < count; i++){
+            sem_post(&sync->playerSem[i]);
+        }
     }
 
     /* Notifica a la vista */
@@ -222,26 +230,32 @@ void cleanup(PlayerProcess *processes, int count, GameState *state, SyncData *sy
     for(int i = 0; i < count; i++){
         int status;     /* Variable para almacenar el estado de salida del proceso hijo. */
 
-        close(processes[i].pipeFd);     /* Cierra el descriptor de archivo del pipe. */
-
-        waitpid(processes[i].pid, &status, 0);      /* Espera a que el proceso hijo termine. */
-
-        /* Imprime el estado de salida del proceso hijo. */
-        if(WIFEXITED(status)){
-            printf("Jugador N°%d (PID: %d): salió con estado %d\n", i + 1, processes[i].pid, WEXITSTATUS(status));
-        }else{
-            if(WIFSIGNALED(status)){
-                printf("Jugador N°%d (PID: %d): murió por señal %d\n", i + 1, processes[i].pid, WTERMSIG(status));
+        if(processes[i].pipeFd >= 0){
+            close(processes[i].pipeFd);     /* Cierra el descriptor de archivo del pipe. */
+        }
+        if(processes[i].pid > 0){
+            waitpid(processes[i].pid, &status, 0);      /* Espera a que el proceso hijo termine. */
+            /* Imprime el estado de salida del proceso hijo. */
+            if(WIFEXITED(status)){
+                printf("Jugador N°%d (PID: %d): salió con estado %d\n", i + 1, processes[i].pid, WEXITSTATUS(status));
+            }else{
+                if(WIFSIGNALED(status)){
+                    printf("Jugador N°%d (PID: %d): murió por señal %d\n", i + 1, processes[i].pid, WTERMSIG(status));
+                }
             }
         }
     }
 
-    /* Libera los recursos de sincronización. */
-    syncDestroy(sync, count);
-    syncClose(syncFd, sync);
-    syncUnlink();
+    if(sync != NULL && syncFd >= 0){
+        /* Libera los recursos de sincronización. */
+        syncDestroy(sync, count);
+        syncClose(syncFd, sync);
+        syncUnlink();
+    }
 
-    /* Libera los recursos del estado del juego. */
-    stateClose(stateFd, state, width, height);
-    stateUnlink();
+    if(state != NULL && stateFd >= 0){
+        /* Libera los recursos del estado del juego. */
+        stateClose(stateFd, state, width, height);
+        stateUnlink();
+    }
 }

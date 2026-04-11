@@ -20,12 +20,8 @@
 static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
 static GameState *gGameState = NULL;            /* Estado del juego. */
 
-static void signalHandler(){
+static void signalHandler(int sig){
     gInterrupted = 1;       /* Indica que se recibió una señal de interrupción. */
-
-    if(gGameState != NULL){
-        gGameState->gameOver = true;
-    }
 }
 
 int main(int argc, char *argv[]){
@@ -86,8 +82,13 @@ int main(int argc, char *argv[]){
     placePlayers(gameState);
 
     /* Crear procesos de jugadores */
-    PlayerProcess playerProcesses[CANT_PLAYERS];
+    PlayerProcess playerProcesses[gameState->playerCount];
 
+    for(int i = 0; i < gameState->playerCount; i++){
+        playerProcesses[i].pid = -1;
+        playerProcesses[i].pipeFd = -1;
+    }
+    
     if(spawnPlayers(&params, playerProcesses, gameState) == -1){
         cleanup(playerProcesses, params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1, 0);
         return 1;
@@ -135,6 +136,10 @@ int main(int argc, char *argv[]){
     while(!gameState->gameOver && !gInterrupted){
         /* En cada iteracion, chequeo si el juego finalizó. */
         checkGameOver(gameState, startTime, params.timeout);
+        
+        if(gInterrupted){
+            gameState ->gameOver = true;    /* Si se recibió una señal de interrupción, marco el juego como terminado. */
+        }
         if(gameState->gameOver){
             break;
         }
