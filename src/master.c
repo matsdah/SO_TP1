@@ -25,7 +25,7 @@ int main(int argc, char *argv[]){
 
     /* Parseo parametros (si aplica). */
     if(!parseParams(argc, argv, &params)){
-        fprintf(stderr, "Uso minimo: %s -p <player_path> [-v <view_path>] [-w <width>] [-h <height>]\n", argv[0]);
+        fprintf(stderr, "Uso: %s -p <player_path> [<player_path> ...] [-v <view_path>] [-w <width>] [-h <height>] [-d <delay_ms>] [-t <timeout_s>] [-s <seed>]\n", argv[0]);
         return 1;
     }
 

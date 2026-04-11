@@ -239,11 +239,10 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
             break;
         }
 
-        FD_ZERO(&readFds);
-        FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
-
         int ret;
         do{
+            FD_ZERO(&readFds);
+            FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
             setTimeoutFromDelayMs(&tv, params->delay);
             ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
         }while((ret == -1) && (errno == EINTR) && !(*interrupted));
@@ -264,6 +263,15 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
             if(bytesRead == -1){
                 perror("Error leyendo movimiento del jugador");
+                gameState->gameOver = true;
+                break;
+            }
+
+            if(bytesRead == 0){
+                errno = EPIPE;
+                perror("Pipe de jugador cerrado");
+                gameState->gameOver = true;
+                break;
             }
 
             if(bytesRead == 1){
@@ -376,11 +384,13 @@ int validateMove(GameState *state, int playerIdx, unsigned char direction){
     }
 
     Player *player = &state->players[playerIdx];
+    const int width = (int)state->width;
+    const int height = (int)state->height;
 
     int newX = player->x + DX[direction];
     int newY = player->y + DY[direction];
 
-    if((newX < 0) || (newX >= state->width) || (newY < 0) || (newY >= state->height)){
+    if((newX < 0) || (newX >= width) || (newY < 0) || (newY >= height)){
         /* Fuera de los límites del tablero. */
         return 0;
     }
@@ -442,6 +452,8 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout){
     }
 
     int activeCount = 0;
+    const int width = (int)state->width;
+    const int height = (int)state->height;
 
     /* Verifica si hay movimientos válidos para cada jugador. */
     for(unsigned char i = 0; i < state->playerCount; i++){
@@ -452,7 +464,7 @@ void checkGameOver(GameState *state, time_t startTime, size_t timeout){
             int newX = (int)player->x + DX[dir];
             int newY = (int)player->y + DY[dir];
 
-            if((newX >= 0) && (newX < state->width) && (newY >= 0) && (newY < state->height)){
+            if((newX >= 0) && (newX < width) && (newY >= 0) && (newY < height)){
                 int cellValue = BOARD_AT(state->board, state->width, newY, newX);
 
                 if(cellValue > 0){

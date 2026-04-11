@@ -4,6 +4,7 @@
 #include <semaphore.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 /* Dimensión máxima del nombre de un jugador. */
 #define NAME_DIM 16

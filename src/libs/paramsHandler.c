@@ -246,7 +246,7 @@ int handleView(const char *value, void *context) {
     copy = malloc(len + 1);
 
     if(copy == NULL){
-        fprintf(stderr, "Error: no hay memoria suficiente para el path de la vista.\n");
+        perror("Error reservando memoria para el path de la vista");
         return 0;
     }
 
@@ -268,7 +268,7 @@ int handlePlayers(const char *value, void *context){
 
     copy = malloc(len + 1);
     if(copy == NULL){
-        fprintf(stderr, "Error: no hay memoria suficiente para el path del jugador.\n");
+        perror("Error reservando memoria para el path del jugador");
         return 0;
     }
 
