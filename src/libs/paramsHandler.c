@@ -76,7 +76,11 @@ static int parseUnsignedShortInRange(const char *value, unsigned short *out, uns
     }
 
     if(parsed < min || parsed > max){
-        fprintf(stderr, "Error: %s debe estar entre %hu y %hu.\n", fieldName, min, max);
+        if(min == 10 && max == USHRT_MAX){
+            fprintf(stderr, "Error: %s debe ser mayor o igual a 10.\n", fieldName);
+        }else{
+            fprintf(stderr, "Error: %s debe estar entre %hu y %hu.\n", fieldName, min, max);
+        }
         return 0;
     }
 
@@ -210,12 +214,12 @@ int parseParams(int argc, char *argv[], Params *config){
 
 int handleWidth(const char *value, void *context){
     Params *cfg = (Params *)context;
-    return parseUnsignedShortInRange(value, &cfg->width, 1, USHRT_MAX, "ancho");
+    return parseUnsignedShortInRange(value, &cfg->width, 10, USHRT_MAX, "ancho");
 }
 
 int handleHeight(const char *value, void *context){
     Params *cfg = (Params *)context;
-    return parseUnsignedShortInRange(value, &cfg->height, 1, USHRT_MAX, "alto");
+    return parseUnsignedShortInRange(value, &cfg->height, 10, USHRT_MAX, "alto");
 }
 
 int handleTimeout(const char *value, void *context){

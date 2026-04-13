@@ -33,6 +33,64 @@ static int semWaitWithInterrupt(sem_t *sem, volatile sig_atomic_t *interrupted){
     return 0;
 }
 
+static int lockStateForWrite(SyncData *sync, volatile sig_atomic_t *interrupted){
+    int lockRet = semWaitWithInterrupt(&sync->masterMutex, interrupted);
+    if(lockRet == 1){
+        return 1;
+    }
+    if(lockRet == -1){
+        perror("Error en sem_wait masterMutex");
+        return -1;
+    }
+
+    lockRet = semWaitWithInterrupt(&sync->stateMutex, interrupted);
+    if(lockRet == 1){
+        if(sem_post(&sync->masterMutex) == -1){
+            perror("Error en sem_post masterMutex");
+        }
+        return 1;
+    }
+    if(lockRet == -1){
+        perror("Error en sem_wait stateMutex");
+        if(sem_post(&sync->masterMutex) == -1){
+            perror("Error en sem_post masterMutex");
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
+static int unlockStateForWrite(SyncData *sync){
+    int hasError = 0;
+
+    if(sem_post(&sync->stateMutex) == -1){
+        perror("Error en sem_post stateMutex");
+        hasError = 1;
+    }
+    if(sem_post(&sync->masterMutex) == -1){
+        perror("Error en sem_post masterMutex");
+        hasError = 1;
+    }
+
+    return (hasError ? -1 : 0);
+}
+
+static int withWriteLockSetGameOver(SyncData *sync, volatile sig_atomic_t *interrupted, GameState *state){
+    int lockRet = lockStateForWrite(sync, interrupted);
+    if(lockRet != 0){
+        return -1;
+    }
+
+    state->gameOver = true;
+
+    if(unlockStateForWrite(sync) == -1){
+        return -1;
+    }
+
+    return 0;
+}
+
 static void setTimeoutFromDelayMs(struct timeval *tv, size_t delayMs){
     tv->tv_sec = (time_t)(delayMs / 1000);
     tv->tv_usec = (suseconds_t)((delayMs % 1000) * 1000);
@@ -57,6 +115,17 @@ static int sleepMsWithInterrupt(size_t delayMs, volatile sig_atomic_t *interrupt
     }
 
     return 0;
+}
+
+static size_t elapsedMs(const struct timespec *start, const struct timespec *end){
+    time_t sec = end->tv_sec - start->tv_sec;
+    long nsec = end->tv_nsec - start->tv_nsec;
+    if(nsec < 0){
+        sec--;
+        nsec += 1000000000L;
+    }
+
+    return (size_t)sec * 1000U + (size_t)(nsec / 1000000L);
 }
 
 void initializeBoard(GameState *state, unsigned int seed){
@@ -230,12 +299,32 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
     struct timeval tv;
 
     while(!gameState->gameOver && !(*interrupted)){
+        struct timespec turnStart;
+        struct timespec turnEnd;
+        int hasTurnStart = (clock_gettime(CLOCK_MONOTONIC, &turnStart) == 0);
+
+        int lockRet = lockStateForWrite(gameSync, interrupted);
+        if(lockRet == 1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+        if(lockRet == -1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+
         checkGameOver(gameState, startTime, params->timeout);
 
         if(*interrupted){
             gameState->gameOver = true;
         }
-        if(gameState->gameOver){
+        int gameOverNow = gameState->gameOver;
+        if(unlockStateForWrite(gameSync) == -1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+
+        if(gameOverNow){
             break;
         }
 
@@ -249,7 +338,7 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
         if(ret == -1){
             perror("Error en select");
-            gameState->gameOver = true;
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
             break;
         }
 
@@ -263,26 +352,26 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
             if(bytesRead == -1){
                 perror("Error leyendo movimiento del jugador");
-                gameState->gameOver = true;
+                (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                 break;
             }
 
             if(bytesRead == 0){
                 errno = EPIPE;
                 perror("Pipe de jugador cerrado");
-                gameState->gameOver = true;
+                (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                 break;
             }
 
             if(bytesRead == 1){
-                int lockRet = semWaitWithInterrupt(&gameSync->masterMutex, interrupted);
+                lockRet = semWaitWithInterrupt(&gameSync->masterMutex, interrupted);
                 if(lockRet == 1){
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
                 if(lockRet == -1){
                     perror("Error en sem_wait masterMutex");
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
 
@@ -291,7 +380,7 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
                     if(sem_post(&gameSync->masterMutex) == -1){
                         perror("Error en sem_post masterMutex");
                     }
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
                 if(lockRet == -1){
@@ -299,7 +388,7 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
                     if(sem_post(&gameSync->masterMutex) == -1){
                         perror("Error en sem_post masterMutex");
                     }
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
 
@@ -313,12 +402,12 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
                 if(sem_post(&gameSync->stateMutex) == -1){
                     perror("Error en sem_post stateMutex");
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
                 if(sem_post(&gameSync->masterMutex) == -1){
                     perror("Error en sem_post masterMutex");
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
 
@@ -330,7 +419,7 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
                 if(sem_post(&gameSync->playerSem[currentPlayer]) == -1){
                     perror("Error en sem_post playerSem");
-                    gameState->gameOver = true;
+                    (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
                     break;
                 }
             }
@@ -338,15 +427,22 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
         currentPlayer = (currentPlayer + 1) % params->playerCount;
 
-        int sleepRet = sleepMsWithInterrupt(params->delay, interrupted);
-        if(sleepRet == -1){
-            perror("Error en nanosleep");
-            gameState->gameOver = true;
-            break;
-        }
-        if(sleepRet == 1){
-            gameState->gameOver = true;
-            break;
+        if(hasTurnStart){
+            if(clock_gettime(CLOCK_MONOTONIC, &turnEnd) == 0){
+                size_t usedMs = elapsedMs(&turnStart, &turnEnd);
+                if(usedMs < params->delay){
+                    int sleepRet = sleepMsWithInterrupt(params->delay - usedMs, interrupted);
+                    if(sleepRet == -1){
+                        perror("Error en nanosleep");
+                        (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+                        break;
+                    }
+                    if(sleepRet == 1){
+                        (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+                        break;
+                    }
+                }
+            }
         }
     }
 }

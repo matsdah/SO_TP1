@@ -41,35 +41,52 @@ int syncInit(SyncData *gameSync, unsigned int playerCount){
 
     memset(gameSync, 0, sizeof(SyncData));      /* Inicializa la estructura a cero. */
 
+    if(playerCount > CANT_PLAYERS){
+        fprintf(stderr, "Error: cantidad de jugadores inválida en syncInit.\n");
+        return -1;
+    }
+
+    unsigned int initializedPlayers = 0;
+    int printNeededInit = 0;
+    int renderDoneInit = 0;
+    int masterMutexInit = 0;
+    int stateMutexInit = 0;
+    int readCountMutexInit = 0;
+
     if(sem_init(&gameSync->printNeeded, 1, 0) == -1){
         /* Error al inicializar el semáforo de impresión. */
         fprintf(stderr, "Error: No se pudo inicializar el semáforo de impresión.\n");
-        return -1;
+        goto init_error;
     }
+    printNeededInit = 1;
 
     if(sem_init(&gameSync->renderDone, 1, 0) == -1){
         /* Error al inicializar el semáforo de renderizado. */
         fprintf(stderr, "Error: No se pudo inicializar el semáforo de finalizacion de renderizado.\n");
-        return -1;
+        goto init_error;
     }
+    renderDoneInit = 1;
 
     if(sem_init(&gameSync->masterMutex, 1, 1) == -1){
         /* Error al inicializar el semáforo del master. */
         fprintf(stderr, "Error: No se pudo inicializar el semáforo del master.\n");
-        return -1;
+        goto init_error;
     }
+    masterMutexInit = 1;
 
     if(sem_init(&gameSync->stateMutex, 1, 1) == -1){
         /* Error al inicializar el semáforo del estado. */
         fprintf(stderr, "Error: No se pudo inicializar el semáforo del exclusión mutua del estado.\n");
-        return -1;
+        goto init_error;
     }
+    stateMutexInit = 1;
 
     if(sem_init(&gameSync->readCountMutex, 1, 1) == -1){
         /* Error al inicializar el semáforo de lectores. */
         fprintf(stderr, "Error: No se pudo inicializar el semáforo de cantidad de lectores.\n");
-        return -1;
+        goto init_error;
     }
+    readCountMutexInit = 1;
 
     gameSync->readersCount = 0;     /* Inicializa el contador de lectores. */
 
@@ -77,11 +94,34 @@ int syncInit(SyncData *gameSync, unsigned int playerCount){
         if(sem_init(&gameSync->playerSem[i], 1, 0) == -1){
             /* Error al inicializar el semáforo del jugador i. */
             fprintf(stderr, "Error: No se pudo inicializar el semáforo del jugador %u.\n", i);
-            return -1;
+            goto init_error;
         }
+        initializedPlayers++;
     }
 
     return 0;
+
+init_error:
+    for(unsigned int i = 0; i < initializedPlayers; i++){
+        (void)sem_destroy(&gameSync->playerSem[i]);
+    }
+    if(readCountMutexInit){
+        (void)sem_destroy(&gameSync->readCountMutex);
+    }
+    if(stateMutexInit){
+        (void)sem_destroy(&gameSync->stateMutex);
+    }
+    if(masterMutexInit){
+        (void)sem_destroy(&gameSync->masterMutex);
+    }
+    if(renderDoneInit){
+        (void)sem_destroy(&gameSync->renderDone);
+    }
+    if(printNeededInit){
+        (void)sem_destroy(&gameSync->printNeeded);
+    }
+
+    return -1;
 }
 
 int syncDestroy(SyncData *gameSync, unsigned int playerCount){
@@ -107,21 +147,26 @@ int syncDestroy(SyncData *gameSync, unsigned int playerCount){
     };
 
     unsigned int semCount = sizeof(syncSemaphores) / sizeof(syncSemaphores[0]);
+    int hasErrors = 0;
     for(unsigned int i = 0; i < semCount; i++){
         if(sem_destroy(syncSemaphores[i]) == -1){
             fprintf(stderr, "%s", syncDestroyErrorMessages[i]);
-            return -1;
+            hasErrors = 1;
         }
+    }
+
+    if(playerCount > CANT_PLAYERS){
+        playerCount = CANT_PLAYERS;
     }
 
     for(unsigned int i = 0; i < playerCount; i++){
         if(sem_destroy(&gameSync->playerSem[i]) == -1){
             fprintf(stderr, "Error: No se pudo destruir el semáforo del jugador %u.\n", i);
-            return -1;
+            hasErrors = 1;
         }
     }
 
-    return 0;
+    return (hasErrors ? -1 : 0);
 }
 
 int syncUnlink(void){
@@ -168,6 +213,10 @@ int syncClose(int shmFd, SyncData *gameSync){
 }
 
 int acquireReadLock(SyncData *sync){
+    if(sync == NULL){
+        fprintf(stderr, "Error: sync nulo en acquireReadLock.\n");
+        return -1;
+    }
 
     if(sem_wait(&sync->masterMutex) == -1){
         perror("Error en sem_wait masterMutex");
@@ -200,6 +249,10 @@ int acquireReadLock(SyncData *sync){
 
     if(sem_post(&sync->readCountMutex) == -1){
         perror("Error en sem_post readCountMutex");
+        if(sem_post(&sync->masterMutex) == -1){
+            perror("Error en sem_post masterMutex");
+        }
+        return -1;
     }
 
     if(sem_post(&sync->masterMutex) == -1){
@@ -211,6 +264,10 @@ int acquireReadLock(SyncData *sync){
 }
 
 int releaseReadLock(SyncData *sync){
+    if(sync == NULL){
+        fprintf(stderr, "Error: sync nulo en releaseReadLock.\n");
+        return -1;
+    }
 
     if(sem_wait(&sync->readCountMutex) == -1){
         perror("Error en sem_wait readCountMutex");
@@ -222,6 +279,10 @@ int releaseReadLock(SyncData *sync){
     if(sync->readersCount == 0){
         if(sem_post(&sync->stateMutex) == -1){    /* Ultimo lector desbloquea */
             perror("Error en sem_post stateMutex");
+            if(sem_post(&sync->readCountMutex) == -1){
+                perror("Error en sem_post readCountMutex");
+            }
+            return -1;
         }
     }
     if(sem_post(&sync->readCountMutex) == -1){
