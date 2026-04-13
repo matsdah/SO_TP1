@@ -100,10 +100,11 @@ SO_TP1/
 - `master` escribe con exclusividad y `vista/jugadores` leen con lock de lectura.
 - Atención round-robin (cirular) para evitar sesgos sistemáticos.
 
-## Limitaciones
+## Limitaciones y consideraciones
 
-- Maximo 9 jugadores simultaneos
-- El tablero debe tener dimensiones minimas de 10x10
+- Como máximo pueden haber 9 jugadores simultáneos.
+- El tablero debe tener dimensiones mínimas de 10x10.
+- No ejecutar el programa con un delay (-d) mayor a timeout (-t).
 
 ## Problemas encontrados y como se solucionaron
 
