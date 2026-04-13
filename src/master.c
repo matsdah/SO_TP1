@@ -79,6 +79,14 @@ int main(int argc, char *argv[]){
 
     runMasterLoop(gameState, gameSync, playerProcesses, &params, &viewReady, &gInterrupted);
 
+    if(viewReady){
+        /* Fuerza un último render antes de esperar a la vista. */
+        (void)notifyView(gameSync);
+    }
+
+    int viewWaitResult = waitViewProcess(viewPid);
+    viewPid = -1;
+
     if(gInterrupted){
         fprintf(stderr, "\n\nInterrumpido por señal, borrando...\n");   /* por ej.: CTRL + C*/
     }else{
@@ -88,5 +96,5 @@ int main(int argc, char *argv[]){
     cleanup(playerProcesses, (int)params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, viewPid, gInterrupted);
     freeParams(&params);
 
-    return (waitViewProcess(viewPid) == -1) ? 1 : 0;
+    return (viewWaitResult == -1) ? 1 : 0;
 }
