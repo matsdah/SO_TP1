@@ -35,11 +35,23 @@ static const char *TRAIL_COLORS[] = {
     "\033[48;5;238m\033[38;5;251m",
     "\033[48;5;52m\033[38;5;217m"
 };
+static const size_t STATS_COLORS_COUNT = sizeof(STATS_COLORS) / sizeof(STATS_COLORS[0]);
+static const size_t TRAIL_COLORS_COUNT = sizeof(TRAIL_COLORS) / sizeof(TRAIL_COLORS[0]);
 
 static const char *HEAD_SYMBOL = " 😃 ";        /* Símbolo para la cabeza de cada jugador */
 static const char *TRAIL_SYMBOL = " ⬜ ";       /* Símbolo para el trazo de cada jugador */
 
-void printPlayerStats(Player *playerState){
+void enterAlternateScreen(void){
+    const char *enter = "\033[?1049h\033[2J\033[H";
+    write(STDOUT_FILENO, enter, strlen(enter));
+}
+
+void leaveAlternateScreen(void){
+    const char *leave = "\033[?1049l\033[0m";
+    write(STDOUT_FILENO, leave, strlen(leave));
+}
+
+void printPlayerStats(const Player *playerState){
     printf("👤 Nombre: %s\t💯 Puntaje: %u\t✅ Movimientos válidos: %u\t❌ Movimientos inválidos: %u\t📍 Coordenadas: (%u,%u)\n",
            playerState->name,
            playerState->score,
@@ -49,9 +61,9 @@ void printPlayerStats(Player *playerState){
            playerState->y);
 }
 
-void printStats(GameState *gameState){
+void printStats(const GameState *gameState){
     for(size_t i = 0; i < gameState->playerCount; i++){
-        printf("%s", STATS_COLORS[i % (sizeof(STATS_COLORS) / sizeof(STATS_COLORS[0]))]);
+        printf("%s", STATS_COLORS[i % STATS_COLORS_COUNT]);
         printPlayerStats(&(gameState->players)[i]);
         printf("%s", K_RESET);
     }
@@ -82,7 +94,7 @@ void printView(const GameState *gameState) {
                 /* Imprime el símbolo del jugador. */
                 if((playerIndex >= 0) && (playerIndex < CANT_PLAYERS)){
 
-                    printf("%s", TRAIL_COLORS[playerIndex % (sizeof(TRAIL_COLORS) / sizeof(TRAIL_COLORS[0]))]);
+                    printf("%s", TRAIL_COLORS[playerIndex % TRAIL_COLORS_COUNT]);
 
                     if(isHead){
                         printf("%s", HEAD_SYMBOL);
@@ -90,6 +102,8 @@ void printView(const GameState *gameState) {
                         printf("%s", TRAIL_SYMBOL);
                     }
                     printf("%s", K_THEME_BASE);
+                }else{
+                    printf(" ?? ");
                 }
             }else{
                 printf(" %-2d ", value);
@@ -102,7 +116,7 @@ void printView(const GameState *gameState) {
 
     /* Imprime la información de cada jugador. */
     for(size_t p = 0; p < gameState->playerCount; p++){
-        printf("%s", TRAIL_COLORS[p % (sizeof(TRAIL_COLORS) / sizeof(TRAIL_COLORS[0]))]);
+        printf("%s", TRAIL_COLORS[p % TRAIL_COLORS_COUNT]);
         printf("P%zu", p + 1);
         printf("%s", K_THEME_BASE);
         printf(" = (%u,%u) ", gameState->players[p].x, gameState->players[p].y);

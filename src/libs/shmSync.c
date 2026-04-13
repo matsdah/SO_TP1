@@ -167,11 +167,11 @@ int syncClose(int shmFd, SyncData *gameSync){
     return ((unmapResult == -1 || closeResult == -1) ? -1 : 0);
 }
 
-void acquireReadLock(SyncData *sync){
+int acquireReadLock(SyncData *sync){
 
     if(sem_wait(&sync->masterMutex) == -1){
         perror("Error en sem_wait masterMutex");
-        return;
+        return -1;
     }
 
     if(sem_wait(&sync->readCountMutex) == -1){
@@ -179,7 +179,7 @@ void acquireReadLock(SyncData *sync){
         if(sem_post(&sync->masterMutex) == -1){
             perror("Error en sem_post masterMutex");
         }
-        return;
+        return -1;
     }
 
     sync->readersCount++;
@@ -194,7 +194,7 @@ void acquireReadLock(SyncData *sync){
             if(sem_post(&sync->masterMutex) == -1){
                 perror("Error en sem_post masterMutex");
             }
-            return;
+            return -1;
         }
     }
 
@@ -204,14 +204,17 @@ void acquireReadLock(SyncData *sync){
 
     if(sem_post(&sync->masterMutex) == -1){
         perror("Error en sem_post masterMutex");
+        return -1;
     }
+
+    return 0;
 }
 
-void releaseReadLock(SyncData *sync){
+int releaseReadLock(SyncData *sync){
 
     if(sem_wait(&sync->readCountMutex) == -1){
         perror("Error en sem_wait readCountMutex");
-        return;
+        return -1;
     }
 
     sync->readersCount--;
@@ -223,5 +226,8 @@ void releaseReadLock(SyncData *sync){
     }
     if(sem_post(&sync->readCountMutex) == -1){
         perror("Error en sem_post readCountMutex");
+        return -1;
     }
+
+    return 0;
 }

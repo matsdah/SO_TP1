@@ -84,10 +84,14 @@ int checkArguments(char * argv[], size_t * width, size_t *height){
 void runLoop(const GameState *state, SyncData *sync, int myIndex){
     int shouldExit = 0;
     while(!shouldExit){
-        acquireReadLock(sync);
+        if(acquireReadLock(sync) == -1){
+            break;
+        }
         int gameOver = state->gameOver;
         unsigned char move = findBestMove(state, myIndex);
-        releaseReadLock(sync);
+        if(releaseReadLock(sync) == -1){
+            break;
+        }
 
         if(gameOver){
             shouldExit = 1;
@@ -110,9 +114,13 @@ void runLoop(const GameState *state, SyncData *sync, int myIndex){
                     continue;
                 }
 
-                acquireReadLock(sync);
+                if(acquireReadLock(sync) == -1){
+                    break;
+                }
                 gameOver = state->gameOver;
-                releaseReadLock(sync);
+                if(releaseReadLock(sync) == -1){
+                    break;
+                }
                 if(gameOver){
                     shouldExit = 1;
                 }

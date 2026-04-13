@@ -9,10 +9,16 @@ void printView(const GameState *gameState);
 /* Limpia la pantalla de la terminal. */
 void clearScreen(void);
 
+/* Entra al buffer alternativo de pantalla. */
+void enterAlternateScreen(void);
+
+/* Sale del buffer alternativo de pantalla. */
+void leaveAlternateScreen(void);
+
 /* Imprime las estadisticas de todos los jugadores. */
-void printStats(GameState *gameState);
+void printStats(const GameState *gameState);
 
 /* Imprime las estadisticas de un jugador individual. */
-void printPlayerStats(Player *playerState);
+void printPlayerStats(const Player *playerState);
 
 #endif

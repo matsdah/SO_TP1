@@ -4,6 +4,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <semaphore.h>
+#include <errno.h>
+#include <limits.h>
+
+static int parseDimension(const char *value, size_t *out, const char *name){
+    char *endptr = NULL;
+    errno = 0;
+    unsigned long parsed = strtoul(value, &endptr, 10);
+
+    if(errno != 0 || endptr == value || *endptr != '\0' || parsed == 0 || parsed > USHRT_MAX){
+        fprintf(stderr, "Error: %s invalido '%s'. Debe estar entre 1 y %u.\n", name, value, USHRT_MAX);
+        return -1;
+    }
+
+    *out = (size_t)parsed;
+    return 0;
+}
 
 /* 
 ** vista.c -> Renderizar el estado del juego en la terminal, espera notificaciones del master 
@@ -12,20 +28,24 @@
 */
 
 int main(int argc, char *argv[]){
-    if(argc < 3){
-        /* Muestro mensaje de error por parametros incorrectos. */
-        fprintf(stderr, "Uso minimo de los parámetros: %s <width> <height>\n", argv[0]);
+    if(argc != 3){
+        fprintf(stderr, "Uso: %s <width> <height>\n", argv[0]);
         return 1;
     }
 
-    size_t width = atoi(argv[1]);       /* Paso el ancho como argumento a entero. */
-    size_t height = atoi(argv[2]);      /* Paso la altura como argumento a entero. */
+    size_t width = 0;
+    size_t height = 0;
+
+    if(parseDimension(argv[1], &width, "width") == -1 || parseDimension(argv[2], &height, "height") == -1){
+        return 1;
+    }
 
     int syncFd = -1;        /* File descriptor de sincronizacion del juego. */
     int stateFd = -1;       /* File descriptor de estado del juego. */
 
     SyncData *sync = NULL;      /* Puntero a la estructura de sincronizacion del juego. */
     GameState *state = NULL;    /* Puntero a la estructura de estado del juego. */
+    int shouldPrintFinalOnMainScreen = 0;
 
     if(syncOpen(&syncFd, &sync) == -1){
         /* Fallo la sincronizacion, muestro mensaje de error. */
@@ -40,19 +60,36 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
+    enterAlternateScreen();
+
     /* Loop principal de RENDERIZADO. */
     while(1){
-        sem_wait(&sync->printNeeded);
+        int waitRes;
+        do{
+            waitRes = sem_wait(&sync->printNeeded);
+        }while(waitRes == -1 && errno == EINTR);
+        if(waitRes == -1){
+            perror("Error en sem_wait printNeeded");
+            break;
+        }
 
-        acquireReadLock(sync);
+        if(acquireReadLock(sync) == -1){
+            break;
+        }
 
         if(state->gameOver){
             /* Si termina el juego, muestro el tablero final y las estadisticas. */
+            shouldPrintFinalOnMainScreen = 1;
             clearScreen();
             printView(state);
             printStats(state);
-            releaseReadLock(sync);
-            sem_post(&sync->renderDone);
+            if(releaseReadLock(sync) == -1){
+                break;
+            }
+            if(sem_post(&sync->renderDone) == -1){
+                perror("Error en sem_post renderDone");
+                break;
+            }
             break;      /* Salgo del loop principal. */
         }
 
@@ -61,16 +98,32 @@ int main(int argc, char *argv[]){
         printView(state);
         printStats(state);
 
-        releaseReadLock(sync);
+        if(releaseReadLock(sync) == -1){
+            break;
+        }
 
-        sem_post(&sync->renderDone); 
+        if(sem_post(&sync->renderDone) == -1){
+            perror("Error en sem_post renderDone");
+            break;
+        }
+    }
+
+    leaveAlternateScreen();
+    if(shouldPrintFinalOnMainScreen){
+        clearScreen();
+        printView(state);
+        printStats(state);
     }
 
     /* Cierro los recursos de sincronizacion (semaforos, pipes). */
-    syncClose(syncFd, sync);
+    if(syncClose(syncFd, sync) == -1){
+        perror("Error en syncClose");
+    }
 
     /* Cierro los recursos de estado del juego. */
-    stateClose(stateFd, state, width, height);
+    if(stateClose(stateFd, state, width, height) == -1){
+        perror("Error en stateClose");
+    }
 
     return 0;
 }

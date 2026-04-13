@@ -23,10 +23,10 @@ int syncOpen(int *shmFd, SyncData **gameSync);
 /* Cierra el mapping y el file descriptor de sincronizacion. */
 int syncClose(int shmFd, SyncData *gameSync);
 
-/* Adquiere lectura exclusiva. */
-void acquireReadLock(SyncData *sync);
+/* Adquiere lectura compartida. Devuelve 0 en éxito, -1 en error. */
+int acquireReadLock(SyncData *sync);
 
-/* Libera lectura exclusiva. */
-void releaseReadLock(SyncData *sync);
+/* Libera lectura compartida. Devuelve 0 en éxito, -1 en error. */
+int releaseReadLock(SyncData *sync);
 
 #endif
