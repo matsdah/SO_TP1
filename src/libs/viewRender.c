@@ -36,6 +36,7 @@ static const char *TRAIL_COLORS[] = {
     "\033[48;5;238m\033[38;5;251m",
     "\033[48;5;52m\033[38;5;217m"
 };
+
 static const size_t STATS_COLORS_COUNT = sizeof(STATS_COLORS) / sizeof(STATS_COLORS[0]);
 static const size_t TRAIL_COLORS_COUNT = sizeof(TRAIL_COLORS) / sizeof(TRAIL_COLORS[0]);
 
@@ -48,11 +49,13 @@ static int writeEscapeSequence(const char *sequence){
 
     while(written < total){
         ssize_t result = write(STDOUT_FILENO, sequence + written, total - written);
+
         if(result == -1){
             if(errno == EINTR){
                 continue;
             }
-            perror("Error escribiendo secuencia ANSI");
+
+            perror("Error escribiendo secuencia ANSI.");
             return -1;
         }
         written += (size_t)result;
@@ -61,14 +64,16 @@ static int writeEscapeSequence(const char *sequence){
     return 0;
 }
 
-void enterAlternateScreen(void){
+void enterAlternateScreen(){
+    /* Secuencia de escape para entrar en la pantalla alternativa. */
     const char *enter = "\033[?1049h\033[2J\033[H";
-    (void)writeEscapeSequence(enter);
+    writeEscapeSequence(enter);
 }
 
-void leaveAlternateScreen(void){
+void leaveAlternateScreen(){
+    /* Secuencia de escape para salir de la pantalla alternativa. */
     const char *leave = "\033[?1049l\033[0m";
-    (void)writeEscapeSequence(leave);
+    writeEscapeSequence(leave);
 }
 
 void printPlayerStats(const Player *playerState){
@@ -99,7 +104,7 @@ void printStats(const GameState *gameState){
     }
 }
 
-void printView(const GameState *gameState) {
+void printView(const GameState *gameState){
     if(gameState == NULL){
         fprintf(stderr, "Error: gameState nulo en printView.\n");
         return;
@@ -161,8 +166,8 @@ void printView(const GameState *gameState) {
     printf("%s", K_RESET);
 }
 
-void clearScreen(void){
+void clearScreen(){
     /* Secuencia de escape ANSI para limpiar la pantalla y mover el cursor a la posición (0,0). */
     const char *clear = "\033[0m\033[48;5;236m\033[38;5;252m\033[2J\033[H";
-    (void)writeEscapeSequence(clear);
+    writeEscapeSequence(clear);
 }

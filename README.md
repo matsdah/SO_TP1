@@ -44,7 +44,7 @@ Los binarios generados se encuentran en la carpeta `bin/`:
 | `-h` | Alto del tablero                      | 10                |
 | `-d` | Delay entre turnos (ms)               | 200               |
 | `-t` | Timeout de inactividad (segundos)     | 10                |
-| `-s` | Semilla para generacion aleatoria     | 67                |
+| `-s` | Semilla para generacion aleatoria     | `time(NULL)`      |
 | `-v` | Path al ejecutable de la vista        | (ninguno)         |
 | `-p` | Paths a los ejecutables de jugadores  | (ninguno)         |
 
@@ -90,6 +90,28 @@ SO_TP1/
 └── README.md
 ```
 
+
+## Decisiones de diseno
+
+- Se separó el sistema en tres procesos: `master`, `vista` y `jugador`.
+- Se usa memoria compartida POSIX para estado y sincronización:
+  - `/game_state` contiene tablero, jugadores y estado global.
+  - `/game_sync` contiene semáforos.
+- `master` escribe con exclusividad y `vista/jugadores` leen con lock de lectura.
+- Atención round-robin (cirular) para evitar sesgos sistemáticos.
+
+## Limitaciones
+
+- Maximo 9 jugadores simultaneos
+- El tablero debe tener dimensiones minimas de 10x10
+
+## Problemas encontrados y como se solucionaron
+
+- **Errores de includes POSIX en LSP/Windows**: en algunos entornos aparecian errores por `semaphore.h`/`unistd.h`. Se valido siempre con compilacion real Linux/WSL y contenedor de catedra.
+- **Salida intercalada entre `master` y `vista`**: se ajusto la secuencia final de render y espera para evitar mezclas de impresion.
+- **Bloqueo al cortar con `Ctrl+C`**: se ajusto el cleanup para no quedar esperando indefinidamente confirmaciones de render cuando hay interrupcion por senal.
+- **Cortes tempranos por timeout**: se reviso el orden del chequeo de fin de juego en el loop principal para evaluar timeout despues de intentar procesar el turno actual.
+
 ## Limpieza
 
 ```bash
@@ -98,3 +120,8 @@ make clean
 ```
 
 Esto elimina las carpetas `obj/` y `bin/`, junto con todos los archivos generados previamente.
+
+## Citas de fragmentos de codigo / uso de IA
+
+- Se utilizaron modelos de IA como asistencia para tareas de refactoreo, revisión de consistencia y detección de funciones/macros/includes no utilizados.
+- Toda implementación de IA fue revisada y adaptada manualmente.

@@ -103,22 +103,22 @@ int syncInit(SyncData *gameSync, unsigned int playerCount){
 
 init_error:
     for(unsigned int i = 0; i < initializedPlayers; i++){
-        (void)sem_destroy(&gameSync->playerSem[i]);
+        sem_destroy(&gameSync->playerSem[i]);
     }
     if(readCountMutexInit){
-        (void)sem_destroy(&gameSync->readCountMutex);
+        sem_destroy(&gameSync->readCountMutex);
     }
     if(stateMutexInit){
-        (void)sem_destroy(&gameSync->stateMutex);
+        sem_destroy(&gameSync->stateMutex);
     }
     if(masterMutexInit){
-        (void)sem_destroy(&gameSync->masterMutex);
+        sem_destroy(&gameSync->masterMutex);
     }
     if(renderDoneInit){
-        (void)sem_destroy(&gameSync->renderDone);
+        sem_destroy(&gameSync->renderDone);
     }
     if(printNeededInit){
-        (void)sem_destroy(&gameSync->printNeeded);
+        sem_destroy(&gameSync->printNeeded);
     }
 
     return -1;
@@ -148,6 +148,7 @@ int syncDestroy(SyncData *gameSync, unsigned int playerCount){
 
     unsigned int semCount = sizeof(syncSemaphores) / sizeof(syncSemaphores[0]);
     int hasErrors = 0;
+
     for(unsigned int i = 0; i < semCount; i++){
         if(sem_destroy(syncSemaphores[i]) == -1){
             fprintf(stderr, "%s", syncDestroyErrorMessages[i]);
@@ -286,7 +287,7 @@ int releaseReadLock(SyncData *sync){
         }
     }
     if(sem_post(&sync->readCountMutex) == -1){
-        perror("Error en sem_post readCountMutex");
+        perror("Error en sem_post readCountMutex.");
         return -1;
     }
 

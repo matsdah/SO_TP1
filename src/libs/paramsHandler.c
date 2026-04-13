@@ -13,7 +13,6 @@
 
 /* Valores default seguros para los parametros. */
 Params defaultParams(){
-    
     Params p = {
         .width = 10,
         .height = 10,
@@ -104,6 +103,7 @@ static int parseSizeTInRange(const char *value, size_t *out, size_t min, size_t 
     }
 
     size_t parsedSize = (size_t)parsed;
+    
     if(parsedSize < min || parsedSize > max){
         fprintf(stderr, "Error: %s fuera de rango.\n", fieldName);
         return 0;
@@ -202,6 +202,7 @@ int parseParams(int argc, char *argv[], Params *config){
     }
 
     size_t totalCells = (size_t)config->width * (size_t)config->height;
+
     if(config->playerCount > totalCells){
         fprintf(stderr, "Error: la cantidad de jugadores (%zu) no puede superar las celdas del tablero (%zu).\n",
                 config->playerCount, totalCells);
@@ -250,7 +251,7 @@ int handleView(const char *value, void *context) {
     copy = malloc(len + 1);
 
     if(copy == NULL){
-        perror("Error reservando memoria para el path de la vista");
+        perror("Error reservando memoria para el path de la vista.");
         return 0;
     }
 
@@ -272,7 +273,7 @@ int handlePlayers(const char *value, void *context){
 
     copy = malloc(len + 1);
     if(copy == NULL){
-        perror("Error reservando memoria para el path del jugador");
+        perror("Error reservando memoria para el path del jugador.");
         return 0;
     }
 

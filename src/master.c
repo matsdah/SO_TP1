@@ -11,8 +11,8 @@
 ** spawnea jugadores-vista, ejecuta el loop principal del juego, y hace cleanup al finalizar.
 */
 
-/* Variables globales para el signal handler */
-static volatile sig_atomic_t gInterrupted = 0;  /* Variable para indicar si se recibió una señal de interrupción. */
+/* Variable global para indicar si se recibió una señal de interrupción. */
+static volatile sig_atomic_t gInterrupted = 0;  
 
 static void signalHandler(int sig){
     (void)sig;
@@ -43,17 +43,22 @@ int main(int argc, char *argv[]){
 
     int stateFd = -1;
     int syncFd = -1;
+
     GameState *gameState = NULL;
     SyncData *gameSync = NULL;
 
+    /* Crea las memorias compartidas (gameState y gameSync). */
     if(setupGameResources(&params, &stateFd, &gameState, &syncFd, &gameSync) == -1){
         freeParams(&params);
         return 1;
     }
 
+    /* Inicializa gameState. */
     setupInitialGameState(gameState, &params);
 
     PlayerProcess playerProcesses[CANT_PLAYERS];
+
+    /* Fork de cada jugador en el array playerProcesses. */
     initPlayerProcesses(playerProcesses, (int)gameState->playerCount);
     
     if(spawnPlayers(&params, playerProcesses, gameState) == -1){
@@ -64,6 +69,7 @@ int main(int argc, char *argv[]){
 
     pid_t viewPid = -1;
     int viewReady = 0;
+
     if(spawnViewProcess(&params, &viewPid, &viewReady) == -1){
         cleanup(playerProcesses, params.playerCount, gameState, gameSync, stateFd, syncFd, params.width, params.height, -1, 0);
         freeParams(&params);
@@ -88,7 +94,7 @@ int main(int argc, char *argv[]){
     viewPid = -1;
 
     if(gInterrupted){
-        fprintf(stderr, "\n\nInterrumpido por señal, borrando...\n");   /* por ej.: CTRL + C*/
+        fprintf(stderr, "\nInterrumpido por señal, borrando...\n");   /* por ej.: CTRL + C*/
     }else{
         printResults(gameState);
     }

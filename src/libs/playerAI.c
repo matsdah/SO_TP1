@@ -14,7 +14,6 @@
 static const int DY[] = {-1,    -1,    0,     1,    1,      1,      0,  -1};
 static const int DX[] = {0,     1,     1,     1,    0,     -1,     -1,  -1};
 
-
 int findMyIndex(const GameState *state){
     pid_t myPid = getpid();     
 
@@ -28,6 +27,7 @@ int findMyIndex(const GameState *state){
     return -1;      /* No encontre el indice actual del jugador.*/
 }
 
+/* Greedy */
 unsigned char findBestMove(const GameState *state, int myIndex){
 
     int myX = state->players[myIndex].x;
@@ -62,54 +62,63 @@ int checkArguments(char * argv[], size_t * width, size_t *height){
     /* Chequeo el ancho del tablero. */
     errno = 0;
     long w = strtol(argv[1], &endptr, 10);
+
     if((errno == ERANGE) || (*endptr != '\0') || (w <= 0) || (w > USHRT_MAX)){
-        fprintf(stderr, "Error: Invalid width '%s'. Must be a positive integer less than or equal to %u.\n", argv[1], USHRT_MAX);
+        fprintf(stderr, "Error: Ancho invalido '%s'. Debe de ser un valor positivo, menor o igual a %u.\n", argv[1], USHRT_MAX);
         return -1;
     }
 
     /* Chequeo el alto del tablero. */
     errno = 0;
     long h = strtol(argv[2], &endptr, 10);
+
     if((errno == ERANGE) || (*endptr != '\0') || (h <= 0) || (h > USHRT_MAX)){
-        fprintf(stderr, "Error: Invalid height '%s'. Must be a positive integer less than or equal to %u.\n", argv[2], USHRT_MAX);
+        fprintf(stderr, "Error: Alto invalido '%s'. Debe de ser un valor positivo, menor o igual a %u.\n", argv[2], USHRT_MAX);
         return -1;
     }
 
     *width = (size_t)w;
     *height = (size_t)h;
     return 0;   /* Argumentos válidos. */
-
 }
 
 void runLoop(const GameState *state, SyncData *sync, int myIndex){
     int shouldExit = 0;
+
     while(!shouldExit){
         if(acquireReadLock(sync) == -1){
+            /* Error al adquirir la exlusividad de lectura. */
             break;
         }
+
         int gameOver = state->gameOver;
         unsigned char move = findBestMove(state, myIndex);
+
         if(releaseReadLock(sync) == -1){
+            /* Error al liberar la exlusividad de lectura. */
             break;
         }
 
         if(gameOver){
             shouldExit = 1;
-        } else {
+        }else {
             ssize_t bytesWritten;
-            do {
-                bytesWritten = write(STDOUT_FILENO, &move, 1);
-            } while ((bytesWritten == -1) && (errno == EINTR));
 
-            if (bytesWritten != 1) {
+            do{
+                bytesWritten = write(STDOUT_FILENO, &move, 1);
+            }while ((bytesWritten == -1) && (errno == EINTR));
+
+            if(bytesWritten != 1){
                 shouldExit = 1;
-            } else {
+            }else{
                 int semResult;
-                do {
+
+                do{
                     semResult = sem_wait(&sync->playerSem[myIndex]);
-                } while ((semResult == -1) && (errno == EINTR));
+                }while ((semResult == -1) && (errno == EINTR));
 
                 if(semResult == -1){
+                    /* Error al adquirir el semáforo del jugador. */
                     shouldExit = 1;
                     continue;
                 }
@@ -117,10 +126,13 @@ void runLoop(const GameState *state, SyncData *sync, int myIndex){
                 if(acquireReadLock(sync) == -1){
                     break;
                 }
+
                 gameOver = state->gameOver;
+
                 if(releaseReadLock(sync) == -1){
                     break;
                 }
+
                 if(gameOver){
                     shouldExit = 1;
                 }

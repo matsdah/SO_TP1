@@ -8,6 +8,13 @@
 #include <limits.h>
 #include <signal.h>
 
+/* 
+** vista.c -> Renderizar el estado del juego en la terminal, espera notificaciones del master 
+** para actualizar la vista, toma escritura exclusiva para mostrar el tablero y las estadisticas 
+** de cada jugador. Al final muestra el tablero final y las estadisticas finales.
+*/
+
+/* global flag used to detect interruptions from a signal. */
 static volatile sig_atomic_t gInterrupted = 0;
 
 static void signalHandler(int sig){
@@ -29,12 +36,6 @@ static int parseDimension(const char *value, size_t *out, const char *name){
     return 0;
 }
 
-/* 
-** vista.c -> Renderizar el estado del juego en la terminal, espera notificaciones del master 
-** para actualizar la vista, toma escritura exclusiva para mostrar el tablero y las estadisticas 
-** de cada jugador. Al final muestra el tablero final y las estadisticas finales.
-*/
-
 int main(int argc, char *argv[]){
     if(argc != 3){
         fprintf(stderr, "Uso: %s <width> <height>\n", argv[0]);
@@ -52,6 +53,7 @@ int main(int argc, char *argv[]){
     sa.sa_handler = signalHandler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
+
     if(sigaction(SIGINT, &sa, NULL) == -1){
         perror("Error en sigaction");
         return 1;
@@ -62,7 +64,9 @@ int main(int argc, char *argv[]){
 
     SyncData *sync = NULL;      /* Puntero a la estructura de sincronizacion del juego. */
     GameState *state = NULL;    /* Puntero a la estructura de estado del juego. */
-    int shouldPrintFinalOnMainScreen = 0;
+
+    /* Flag para que la ultima impresion de la pantalla sea en la pantalla principal. */
+    bool shouldPrintFinalOnMainScreen = false;
 
     if(syncOpen(&syncFd, &sync) == -1){
         /* Fallo la sincronizacion, muestro mensaje de error. */
@@ -87,8 +91,9 @@ int main(int argc, char *argv[]){
 
         int waitRes;
         do{
+            /* Espera a que el master notifique que se necesita imprimir. */
             waitRes = sem_wait(&sync->printNeeded);
-        }while(waitRes == -1 && errno == EINTR && !gInterrupted);
+        }while((waitRes == -1) && (errno == EINTR) && !gInterrupted);
 
         if(gInterrupted){
             break;
@@ -105,17 +110,17 @@ int main(int argc, char *argv[]){
 
         if(state->gameOver){
             /* Si termina el juego, muestro el tablero final y las estadisticas. */
-            shouldPrintFinalOnMainScreen = 1;
-            clearScreen();
-            printView(state);
-            printStats(state);
+            shouldPrintFinalOnMainScreen = true;
+    
             if(releaseReadLock(sync) == -1){
                 break;
             }
+
             if(sem_post(&sync->renderDone) == -1){
                 perror("Error en sem_post renderDone");
                 break;
             }
+
             break;      /* Salgo del loop principal. */
         }
 
@@ -135,6 +140,7 @@ int main(int argc, char *argv[]){
     }
 
     leaveAlternateScreen();
+
     if(shouldPrintFinalOnMainScreen){
         clearScreen();
         printView(state);
@@ -143,12 +149,12 @@ int main(int argc, char *argv[]){
 
     /* Cierro los recursos de sincronizacion (semaforos, pipes). */
     if(syncClose(syncFd, sync) == -1){
-        perror("Error en syncClose");
+        perror("Error en syncClose.");
     }
 
     /* Cierro los recursos de estado del juego. */
     if(stateClose(stateFd, state, width, height) == -1){
-        perror("Error en stateClose");
+        perror("Error en stateClose.");
     }
 
     return 0;
