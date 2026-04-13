@@ -303,30 +303,7 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
         struct timespec turnEnd;
         int hasTurnStart = (clock_gettime(CLOCK_MONOTONIC, &turnStart) == 0);
 
-        int lockRet = lockStateForWrite(gameSync, interrupted);
-        if(lockRet == 1){
-            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
-            break;
-        }
-        if(lockRet == -1){
-            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
-            break;
-        }
-
-        checkGameOver(gameState, startTime, params->timeout);
-
-        if(*interrupted){
-            gameState->gameOver = true;
-        }
-        int gameOverNow = gameState->gameOver;
-        if(unlockStateForWrite(gameSync) == -1){
-            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
-            break;
-        }
-
-        if(gameOverNow){
-            break;
-        }
+        int lockRet;
 
         int ret;
         do{
@@ -423,6 +400,36 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
                     break;
                 }
             }
+        }
+
+        /*
+        ** Evaluar timeout/fin de juego al final de la iteracion,
+        ** luego de intentar procesar el movimiento del jugador actual.
+        */
+        lockRet = lockStateForWrite(gameSync, interrupted);
+        if(lockRet == 1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+        if(lockRet == -1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+
+        if(*interrupted){
+            gameState->gameOver = true;
+        }else{
+            checkGameOver(gameState, startTime, params->timeout);
+        }
+
+        int gameOverNow = gameState->gameOver;
+        if(unlockStateForWrite(gameSync) == -1){
+            (void)withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+
+        if(gameOverNow){
+            break;
         }
 
         currentPlayer = (currentPlayer + 1) % params->playerCount;
