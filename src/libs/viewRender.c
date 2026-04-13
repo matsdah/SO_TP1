@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 /* 
 ** viewRender.c -> render del tablero y estadísticas con colores/símbolos. 
@@ -41,27 +42,56 @@ static const size_t TRAIL_COLORS_COUNT = sizeof(TRAIL_COLORS) / sizeof(TRAIL_COL
 static const char *HEAD_SYMBOL = " 😃 ";        /* Símbolo para la cabeza de cada jugador */
 static const char *TRAIL_SYMBOL = " ⬜ ";       /* Símbolo para el trazo de cada jugador */
 
+static int writeEscapeSequence(const char *sequence){
+    size_t total = strlen(sequence);
+    size_t written = 0;
+
+    while(written < total){
+        ssize_t result = write(STDOUT_FILENO, sequence + written, total - written);
+        if(result == -1){
+            if(errno == EINTR){
+                continue;
+            }
+            perror("Error escribiendo secuencia ANSI");
+            return -1;
+        }
+        written += (size_t)result;
+    }
+
+    return 0;
+}
+
 void enterAlternateScreen(void){
     const char *enter = "\033[?1049h\033[2J\033[H";
-    write(STDOUT_FILENO, enter, strlen(enter));
+    (void)writeEscapeSequence(enter);
 }
 
 void leaveAlternateScreen(void){
     const char *leave = "\033[?1049l\033[0m";
-    write(STDOUT_FILENO, leave, strlen(leave));
+    (void)writeEscapeSequence(leave);
 }
 
 void printPlayerStats(const Player *playerState){
+    if(playerState == NULL){
+        fprintf(stderr, "Error: playerState nulo en printPlayerStats.\n");
+        return;
+    }
+
     printf("👤 Nombre: %s\t💯 Puntaje: %u\t✅ Movimientos válidos: %u\t❌ Movimientos inválidos: %u\t📍 Coordenadas: (%u,%u)\n",
            playerState->name,
            playerState->score,
            playerState->validMoves,
            playerState->invalidMoves,
-           playerState->x,
-           playerState->y);
+           (unsigned int)playerState->x,
+           (unsigned int)playerState->y);
 }
 
 void printStats(const GameState *gameState){
+    if(gameState == NULL){
+        fprintf(stderr, "Error: gameState nulo en printStats.\n");
+        return;
+    }
+
     for(size_t i = 0; i < gameState->playerCount; i++){
         printf("%s", STATS_COLORS[i % STATS_COLORS_COUNT]);
         printPlayerStats(&(gameState->players)[i]);
@@ -70,6 +100,11 @@ void printStats(const GameState *gameState){
 }
 
 void printView(const GameState *gameState) {
+    if(gameState == NULL){
+        fprintf(stderr, "Error: gameState nulo en printView.\n");
+        return;
+    }
+
     printf("%s", K_THEME_BASE);
 
     /* Imprime el tablero. */
@@ -84,7 +119,7 @@ void printView(const GameState *gameState) {
 
                 bool isHead = false;
 
-                if((playerIndex >= 0) && (playerIndex < gameState->playerCount)){
+                if((playerIndex >= 0) && ((size_t)playerIndex < gameState->playerCount)){
                     /* Verifica si es la cabeza del jugador. */
                     if((gameState->players[playerIndex].x == j) && (gameState->players[playerIndex].y == i)){
                         isHead = true;
@@ -92,7 +127,7 @@ void printView(const GameState *gameState) {
                 }
 
                 /* Imprime el símbolo del jugador. */
-                if((playerIndex >= 0) && (playerIndex < CANT_PLAYERS)){
+                if((playerIndex >= 0) && ((size_t)playerIndex < gameState->playerCount)){
 
                     printf("%s", TRAIL_COLORS[playerIndex % TRAIL_COLORS_COUNT]);
 
@@ -119,7 +154,7 @@ void printView(const GameState *gameState) {
         printf("%s", TRAIL_COLORS[p % TRAIL_COLORS_COUNT]);
         printf("P%zu", p + 1);
         printf("%s", K_THEME_BASE);
-        printf(" = (%u,%u) ", gameState->players[p].x, gameState->players[p].y);
+        printf(" = (%u,%u) ", (unsigned int)gameState->players[p].x, (unsigned int)gameState->players[p].y);
     }
     printf("\n");
 
@@ -129,5 +164,5 @@ void printView(const GameState *gameState) {
 void clearScreen(void){
     /* Secuencia de escape ANSI para limpiar la pantalla y mover el cursor a la posición (0,0). */
     const char *clear = "\033[0m\033[48;5;236m\033[38;5;252m\033[2J\033[H";
-    write(STDOUT_FILENO, clear, strlen(clear));
+    (void)writeEscapeSequence(clear);
 }

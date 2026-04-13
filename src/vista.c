@@ -6,6 +6,14 @@
 #include <semaphore.h>
 #include <errno.h>
 #include <limits.h>
+#include <signal.h>
+
+static volatile sig_atomic_t gInterrupted = 0;
+
+static void signalHandler(int sig){
+    (void)sig;
+    gInterrupted = 1;
+}
 
 static int parseDimension(const char *value, size_t *out, const char *name){
     char *endptr = NULL;
@@ -40,6 +48,15 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
+    struct sigaction sa;
+    sa.sa_handler = signalHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if(sigaction(SIGINT, &sa, NULL) == -1){
+        perror("Error en sigaction");
+        return 1;
+    }
+
     int syncFd = -1;        /* File descriptor de sincronizacion del juego. */
     int stateFd = -1;       /* File descriptor de estado del juego. */
 
@@ -64,10 +81,19 @@ int main(int argc, char *argv[]){
 
     /* Loop principal de RENDERIZADO. */
     while(1){
+        if(gInterrupted){
+            break;
+        }
+
         int waitRes;
         do{
             waitRes = sem_wait(&sync->printNeeded);
-        }while(waitRes == -1 && errno == EINTR);
+        }while(waitRes == -1 && errno == EINTR && !gInterrupted);
+
+        if(gInterrupted){
+            break;
+        }
+
         if(waitRes == -1){
             perror("Error en sem_wait printNeeded");
             break;
