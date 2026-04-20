@@ -206,6 +206,13 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
         }
 
         if(pid == 0){
+
+            for(size_t j = 0; j < i; j++){
+                if(processes[j].pipeFd >= 0){
+                    close(processes[j].pipeFd);     
+                }
+            }
+
             /* Proceso hijo */
             close(pipeFds[0]);
 
@@ -218,7 +225,7 @@ int spawnPlayers(Params *params, PlayerProcess *processes, GameState *state){
 
             /* Cierra el descriptor de archivo original por haberlo duplicado. */
             close(pipeFds[1]);
-
+            
             char widthStr[U16_STR_LEN];
             char heightStr[U16_STR_LEN];
 
