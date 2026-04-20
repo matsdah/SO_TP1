@@ -8,3 +8,10 @@ jugador
 *.log
 *.out
 .DS_Store
+
+*.md
+!README.md
+*.pdf
+*.txt
+
+ChompChamps
