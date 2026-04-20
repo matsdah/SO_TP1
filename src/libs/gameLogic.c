@@ -177,10 +177,8 @@ void placePlayers(GameState *state){
 
         snprintf(state->players[i].name, NAME_DIM, "Player %d", i + 1);
 
-        /* Marca posicion inicial como ocupada. */
-        int *cell = &BOARD_AT(state->board, w, state->players[i].y, state->players[i].x);
-        state->players[i].score += *cell;
-        *cell = -(int)(i + 1);
+        /* Marca posicion inicial como ocupada (no otorga recompensas). */
+        BOARD_AT(state->board, w, state->players[i].y, state->players[i].x) = -(char)i;
     }
 }
 
@@ -546,7 +544,7 @@ int validateMove(GameState *state, int playerIdx, unsigned char direction){
 
     int cellValue = BOARD_AT(state->board, state->width, newY, newX);
 
-    if(cellValue < 0){
+    if(cellValue <= 0){
         /* Celda ya ocupada por otro jugador. */
         return 0;
     }
@@ -559,11 +557,11 @@ void applyMove(GameState *state, int playerIdx, unsigned char direction){
     int newX = player->x + DX[direction];
     int newY = player->y + DY[direction];
 
-    int *cell = &BOARD_AT(state->board, state->width, newY, newX);
+    signed char *cell = &BOARD_AT(state->board, state->width, newY, newX);
 
     player->score += *cell;     /* Suma el valor de la celda al puntaje del jugador. */
 
-    *cell = -(playerIdx + 1);   /* Marca la celda como ocupada por el jugador. */
+    *cell = -(char)playerIdx;   /* Marca la celda como ocupada por el jugador. */
 
     /* Actualiza la posición del jugador en el tablero. */
     player->x = newX;           

@@ -26,8 +26,8 @@
 typedef struct {
     char name[NAME_DIM];                /* Nombre del jugador. */
     unsigned int score;                 /* Puntaje acumulado. */
-    unsigned int validMoves;            /* Cantidad de movimientos válidos. */
     unsigned int invalidMoves;          /* Cantidad de movimientos inválidos. */
+    unsigned int validMoves;            /* Cantidad de movimientos válidos. */
     unsigned short x;                   /* Posición X en el tablero. */
     unsigned short y;                   /* Posición Y en el tablero. */
     pid_t pid;                          /* PID del proceso del jugador. */
@@ -42,7 +42,7 @@ typedef struct {
     unsigned char playerCount;          /* Cantidad de jugadores en el juego. */
     Player players[CANT_PLAYERS];       /* Información de los jugadores. */
     bool gameOver;                      /* true si el juego ha terminado. */
-    int board[];                        /* Tablero flexible: fila-0, fila-1, ..., fila-n-1 */
+    signed char board[];                       /* Tablero flexible: fila-0, fila-1, ..., fila-n-1 */
 } GameState;
 
 

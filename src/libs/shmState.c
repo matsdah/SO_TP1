@@ -9,7 +9,7 @@
 */
 
 size_t stateGetSize(size_t width, size_t height){
-    return (sizeof(GameState) + (sizeof(int) * (width * height)));
+    return (sizeof(GameState) + (sizeof(char) * (width * height)));
 }
 
 int stateCreate(int *shmFd, GameState **gameState, size_t width, size_t height) {

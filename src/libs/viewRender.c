@@ -118,9 +118,9 @@ void printView(const GameState *gameState){
 
             int value = BOARD_AT(gameState->board, gameState->width, i, j);
 
-            if(value < 0){
+            if(value <= 0){
                 /* Procesa el valor negativo para identificar al jugador. */
-                int playerIndex = -(value + 1);
+                int playerIndex = -value;
 
                 bool isHead = false;
 
