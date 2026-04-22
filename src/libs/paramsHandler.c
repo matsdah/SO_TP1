@@ -210,6 +210,13 @@ int parseParams(int argc, char *argv[], Params *config){
         return 0;
     }
 
+    if(config->timeout > 0 && config->delay / 1000 >= config->timeout){
+        fprintf(stderr, "Error: el delay (%zu ms) debe ser menor al timeout (%zu s).\n",
+                config->delay, config->timeout);
+        freeParams(config);
+        return 0;
+    }
+
     return 1;
 }
 
