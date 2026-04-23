@@ -86,8 +86,19 @@ void runLoop(const GameState *state, SyncData *sync, int myIndex){
     int shouldExit = 0;
 
     while(!shouldExit){
+        /* Esperar la autorización del master para jugar el turno. */
+        int semResult;
+
+        do{
+            semResult = sem_wait(&sync->playerSem[myIndex]);
+        }while((semResult == -1) && (errno == EINTR));
+
+        if(semResult == -1){
+            break;
+        }
+
+        /* Calcular el movimiento con el estado más fresco posible. */
         if(acquireReadLock(sync) == -1){
-            /* Error al adquirir la exlusividad de lectura. */
             break;
         }
 
@@ -95,47 +106,20 @@ void runLoop(const GameState *state, SyncData *sync, int myIndex){
         unsigned char move = findBestMove(state, myIndex);
 
         if(releaseReadLock(sync) == -1){
-            /* Error al liberar la exlusividad de lectura. */
             break;
         }
 
         if(gameOver){
             shouldExit = 1;
-        }else {
+        }else{
             ssize_t bytesWritten;
 
             do{
                 bytesWritten = write(STDOUT_FILENO, &move, 1);
-            }while ((bytesWritten == -1) && (errno == EINTR));
+            }while((bytesWritten == -1) && (errno == EINTR));
 
             if(bytesWritten != 1){
                 shouldExit = 1;
-            }else{
-                int semResult;
-
-                do{
-                    semResult = sem_wait(&sync->playerSem[myIndex]);
-                }while ((semResult == -1) && (errno == EINTR));
-
-                if(semResult == -1){
-                    /* Error al adquirir el semáforo del jugador. */
-                    shouldExit = 1;
-                    continue;
-                }
-
-                if(acquireReadLock(sync) == -1){
-                    break;
-                }
-
-                gameOver = state->gameOver;
-
-                if(releaseReadLock(sync) == -1){
-                    break;
-                }
-
-                if(gameOver){
-                    shouldExit = 1;
-                }
             }
         }
     }

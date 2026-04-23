@@ -107,12 +107,6 @@ static int withWriteLockSetGameOver(SyncData *sync, volatile sig_atomic_t *inter
     return 0;
 }
 
-/* Convierte un delay expresado en milisegundos en un struct timeval. */
-static void setTimeoutFromDelayMs(struct timeval *tv, size_t delayMs){
-    tv->tv_sec = (time_t)(delayMs / 1000);
-    tv->tv_usec = (suseconds_t)((delayMs % 1000) * 1000);
-}
-
 /* Interruption-aware. */
 static int sleepMsWithInterrupt(size_t delayMs, volatile sig_atomic_t *interrupted){
     struct timespec req;
@@ -329,7 +323,6 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
     time_t startTime = time(NULL);
     int currentPlayer = 0;
     fd_set readFds;
-    struct timeval tv;
 
     while(!gameState->gameOver && !(*interrupted)){
         struct timespec turnStart;
@@ -340,12 +333,31 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
 
         int ret;
 
+        /*
+        ** Autoriza al jugador del turno actual a calcular y enviar su movimiento.
+        ** El jugador queda bloqueado en sem_wait hasta este post.
+        */
+        if(sem_post(&gameSync->playerSem[currentPlayer]) == -1){
+            perror("Error en sem_post playerSem");
+            withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
+
+        /*
+        ** Espera (sin timeout) a que llegue el movimiento del jugador autorizado.
+        ** Evita saltar el turno si el jugador tarda más que params->delay.
+        ** El fin de juego por inactividad se cubre con params->timeout (checkGameOver).
+        */
         do{
             FD_ZERO(&readFds);
             FD_SET(playerProcesses[currentPlayer].pipeFd, &readFds);
-            setTimeoutFromDelayMs(&tv, params->delay);
-            ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, &tv);
+            ret = select(playerProcesses[currentPlayer].pipeFd + 1, &readFds, NULL, NULL, NULL);
         }while((ret == -1) && (errno == EINTR) && !(*interrupted));
+
+        if(*interrupted){
+            withWriteLockSetGameOver(gameSync, interrupted, gameState);
+            break;
+        }
 
         if(ret == -1){
             perror("Error en select.");
@@ -429,12 +441,6 @@ void runMasterLoop(GameState *gameState, SyncData *gameSync, PlayerProcess *play
                     if(notifyView(gameSync) == -1){
                         *viewReady = 0;
                     }
-                }
-
-                if(sem_post(&gameSync->playerSem[currentPlayer]) == -1){
-                    perror("Error en sem_post playerSem");
-                    withWriteLockSetGameOver(gameSync, interrupted, gameState);
-                    break;
                 }
             }
         }
